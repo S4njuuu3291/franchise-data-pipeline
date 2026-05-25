@@ -1,0 +1,235 @@
+# =============================================================================
+# Struktur Database OLTP — Franchise Data Pipeline
+# =============================================================================
+# Database: PostgreSQL
+# Schema : public
+# =============================================================================
+
+databases:
+  - name: franchise_oltp
+    engine: PostgreSQL
+    description: Database transaksional utama untuk sistem franchise restoran
+
+    tables:
+      # -----------------------------------------------------------------------
+      # 1. outlet_master — Data master cabang restoran
+      # -----------------------------------------------------------------------
+      - name: outlet_master
+        description: Menyimpan data master seluruh cabang restoran franchise
+        columns:
+          - name: outlet_id
+            type: INTEGER
+            key: PRIMARY KEY
+            nullable: false
+            description: >
+              Identitas unik untuk membedakan satu cabang restoran
+              dengan cabang lainnya.
+
+          - name: outlet_name
+            type: VARCHAR(150)
+            key: null
+            nullable: false
+            description: >
+              Nama resmi dari cabang restoran yang bersangkutan.
+
+          - name: city
+            type: VARCHAR(100)
+            key: null
+            nullable: false
+            description: >
+              Nama kota tempat cabang restoran tersebut beroperasi.
+
+          - name: region_tier
+            type: VARCHAR(50)
+            key: null
+            nullable: false
+            description: >
+              Klasifikasi ekonomi wilayah (misal: Tier 1 untuk Megapolitan,
+              Tier 2 untuk Kota Berkembang) yang menentukan kebijakan harga.
+
+          - name: created_at
+            type: TIMESTAMP
+            key: null
+            nullable: false
+            default: NOW()
+            description: >
+              Catatan waktu kapan cabang restoran ini pertama kali
+              didaftarkan ke dalam sistem.
+
+          - name: updated_at
+            type: TIMESTAMP
+            key: null
+            nullable: false
+            default: NOW()
+            description: >
+              Catatan waktu kapan terakhir kali terjadi perubahan informasi
+              pada data cabang ini.
+
+      # -----------------------------------------------------------------------
+      # 2. menu_master — Data master menu produk
+      # -----------------------------------------------------------------------
+      - name: menu_master
+        description: Menyimpan data master seluruh menu produk franchise
+        columns:
+          - name: menu_id
+            type: INTEGER
+            key: PRIMARY KEY
+            nullable: false
+            description: >
+              Identitas unik untuk setiap jenis makanan atau minuman
+              yang dijual.
+
+          - name: menu_name
+            type: VARCHAR(200)
+            key: null
+            nullable: false
+            description: >
+              Nama hidangan yang tertera pada daftar menu.
+
+          - name: category
+            type: VARCHAR(50)
+            key: null
+            nullable: false
+            description: >
+              Kelompok jenis produk (misal: Makanan Utama, Minuman,
+              Cemilan, Paket Hemat).
+
+          - name: base_price
+            type: NUMERIC(12,2)
+            key: null
+            nullable: false
+            description: >
+              Harga modal standar atau harga acuan dasar dari pusat.
+              Harga regional bersifat dinamis ditentukan oleh logika
+              aplikasi kasir saat transaksi di order_items.price_per_item.
+
+          - name: is_promo_active
+            type: BOOLEAN
+            key: null
+            nullable: false
+            default: FALSE
+            description: >
+              Flag penanda apakah menu tersebut sedang masuk dalam program
+              potongan harga atau kampanye aktif.
+
+          - name: updated_at
+            type: TIMESTAMP
+            key: null
+            nullable: false
+            default: NOW()
+            description: >
+              Catatan waktu kapan terakhir kali harga, status promo, atau
+              informasi menu ini diubah oleh pusat.
+
+      # -----------------------------------------------------------------------
+      # 3. orders — Data transaksi pesanan
+      # -----------------------------------------------------------------------
+      - name: orders
+        description: >
+          Menyimpan data header transaksi pembelian (struk/nota) yang
+          tercetak di kasir
+        columns:
+          - name: order_id
+            type: INTEGER
+            key: PRIMARY KEY
+            nullable: false
+            description: >
+              Identitas unik untuk setiap struk atau nota transaksi
+              pembelian yang tercetak di kasir.
+
+          - name: outlet_id
+            type: INTEGER
+            key: FOREIGN KEY (outlet_master.outlet_id)
+            nullable: false
+            description: >
+              Penanda di cabang mana transaksi pembelian tersebut terjadi.
+
+          - name: cashier_id
+            type: INTEGER
+            key: null
+            nullable: false
+            description: >
+              Penanda pegawai kasir mana yang memproses dan bertanggung
+              jawab atas transaksi tersebut.
+
+          - name: total_amount
+            type: NUMERIC(14,2)
+            key: null
+            nullable: false
+            description: >
+              Jumlah total uang yang harus dibayar oleh pelanggan untuk
+              seluruh isi struk.
+
+          - name: payment_method
+            type: VARCHAR(30)
+            key: null
+            nullable: false
+            description: >
+              Jenis pembayaran yang digunakan oleh pelanggan
+              (misal: Tunai, QRIS, Debit, Kartu Kredit).
+
+          - name: created_at
+            type: TIMESTAMP
+            key: null
+            nullable: false
+            default: NOW()
+            description: >
+              Catatan waktu presisi (jam, menit, detik) kapan struk
+              belanja tersebut dibuat dan dibayar.
+
+      # -----------------------------------------------------------------------
+      # 4. order_items — Detail baris item dalam pesanan
+      # -----------------------------------------------------------------------
+      - name: order_items
+        description: >
+          Menyimpan data detail setiap baris produk yang dibeli dalam
+          satu transaksi pesanan
+        columns:
+          - name: item_id
+            type: INTEGER
+            key: PRIMARY KEY
+            nullable: false
+            description: >
+              Identitas unik untuk setiap baris produk yang tertera di
+              dalam satu struk belanja.
+
+          - name: order_id
+            type: INTEGER
+            key: FOREIGN KEY (orders.order_id)
+            nullable: false
+            description: >
+              Penanda yang mengaitkan baris item ini dengan nomor induk
+              struk belanja di tabel orders.
+
+          - name: menu_id
+            type: INTEGER
+            key: FOREIGN KEY (menu_master.menu_id)
+            nullable: false
+            description: >
+              Penanda jenis produk makanan atau minuman apa yang dibeli
+              pada baris ini.
+
+          - name: quantity
+            type: INTEGER
+            key: null
+            nullable: false
+            default: 1
+            description: >
+              Jumlah atau porsi dari produk yang dibeli dalam satu baris
+              tersebut.
+
+          - name: price_per_item
+            type: NUMERIC(12,2)
+            key: null
+            nullable: false
+            description: >
+              Harga satuan aktual dari produk yang berlaku pada saat
+              transaksi terjadi.
+
+          - name: subtotal
+            type: NUMERIC(14,2)
+            key: null
+            nullable: false
+            description: >
+              Total harga untuk baris tersebut hasil kalkulasi dari
+              kuantitas dikalikan harga satuan.
