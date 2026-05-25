@@ -100,8 +100,27 @@ databases:
             nullable: false
             description: >
               Harga modal standar atau harga acuan dasar dari pusat.
-              Harga regional bersifat dinamis ditentukan oleh logika
-              aplikasi kasir saat transaksi di order_items.price_per_item.
+
+          - name: price_tier_1
+            type: NUMERIC(12,2)
+            key: null
+            nullable: false
+            description: >
+              Harga jual untuk wilayah Tier 1 (Megapolitan).
+
+          - name: price_tier_2
+            type: NUMERIC(12,2)
+            key: null
+            nullable: false
+            description: >
+              Harga jual untuk wilayah Tier 2 (Kota Berkembang).
+
+          - name: price_tier_3
+            type: NUMERIC(12,2)
+            key: null
+            nullable: false
+            description: >
+              Harga jual untuk wilayah Tier 3 (Kota Kecil).
 
           - name: is_promo_active
             type: BOOLEAN
