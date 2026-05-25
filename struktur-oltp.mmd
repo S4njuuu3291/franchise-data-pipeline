@@ -1,0 +1,49 @@
+erDiagram
+    %% =========================================================================
+    %% ERD — Database OLTP Franchise
+    %% Engine: PostgreSQL
+    %% =========================================================================
+
+    outlet_master {
+        int               outlet_id         PK  "Identitas unik cabang"
+        varchar_150       outlet_name           "Nama resmi cabang restoran"
+        varchar_100       city                  "Kota tempat cabang beroperasi"
+        varchar_50        region_tier           "Klasifikasi ekonomi wilayah"
+        timestamp         created_at            "Waktu pendaftaran cabang"
+        timestamp         updated_at            "Waktu perubahan terakhir"
+    }
+
+    menu_master {
+        int               menu_id           PK  "Identitas unik menu"
+        varchar_200       menu_name             "Nama hidangan"
+        varchar_50        category              "Kelompok jenis produk"
+        numeric_12_2      base_price            "Harga modal/acuan dasar dari pusat"
+        boolean           is_promo_active       "Flag promo aktif"
+        timestamp         updated_at            "Waktu perubahan terakhir"
+    }
+
+    orders {
+        int               order_id          PK  "Identitas unik transaksi"
+        int               outlet_id         FK  "Penanda cabang transaksi"
+        int               cashier_id            "Penanda kasir pemroses"
+        numeric_14_2      total_amount          "Total pembayaran"
+        varchar_30        payment_method        "Jenis pembayaran"
+        timestamp         created_at            "Waktu transaksi dibuat"
+    }
+
+    order_items {
+        int               item_id           PK  "Identitas unik baris item"
+        int               order_id          FK  "Penanda induk transaksi"
+        int               menu_id           FK  "Penanda produk dibeli"
+        int               quantity              "Jumlah/porsi produk"
+        numeric_12_2      price_per_item        "Harga satuan saat transaksi"
+        numeric_14_2      subtotal              "Total harga baris (qty x harga)"
+    }
+
+    %% =========================================================================
+    %% Relationships
+    %% =========================================================================
+
+    outlet_master  ||--o{ orders       : "memiliki"
+    orders         ||--|{ order_items  : "berisi"
+    menu_master    ||--o{ order_items  : "terjual_sebagai"
