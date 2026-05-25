@@ -1,0 +1,65 @@
+services:
+  postgres-primary:
+    image: postgres:15-alpine
+    container_name: pg_primary
+    environment:
+      POSTGRES_USER: replicator_user
+      POSTGRES_PASSWORD: supersecretpassword
+      POSTGRES_DB: main_db
+    ports:
+      - "5431:5432"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        # Mulai PostgreSQL melalui docker-entrypoint.sh (mode synchronous replication)
+        docker-entrypoint.sh postgres \
+          -c wal_level=replica \
+          -c max_wal_senders=10 \
+          -c max_replication_slots=10 &
+          
+        # Tunggu hingga PostgreSQL siap
+        until pg_isready -U replicator_user; do sleep 1; done
+        
+        # Tambahkan entri pg_hba.conf untuk koneksi replikasi
+        echo "host replication replicator_user 0.0.0.0/0 trust" >> /var/lib/postgresql/data/pg_hba.conf
+        psql -U replicator_user -d postgres -c "SELECT pg_reload_conf();"
+        
+        echo "Primary is ready for replication connections."
+        wait
+    volumes:
+      - primary_data:/var/lib/postgresql/data
+
+  postgres-replica:
+    image: postgres:15-alpine
+    container_name: pg_replica
+    environment:
+      # Kita gunakan pg_basebackup untuk kloning data awal dari Primary
+      PGPASSWORD: supersecretpassword
+    ports:
+      - "5432:5432"
+    depends_on:
+      - postgres-primary
+    # Script otomatis agar Replica mengkloning data Primary saat pertama kali nyala
+    entrypoint: [ "/bin/sh", "-c" ]
+    command:
+      - |
+        echo "Waiting for primary to be ready..."
+        until pg_isready -h postgres-primary -p 5432 -U replicator_user; do sleep 1; done
+        
+        if [ ! -s /var/lib/postgresql/data/PG_VERSION ]; then
+          echo "Cloning primary database..."
+          pg_basebackup -h postgres-primary -D /var/lib/postgresql/data -U replicator_user -v -P -R -X stream
+        fi
+        
+        # Pastikan kepemilikan dan permission data diubah ke user postgres
+        chown -R postgres:postgres /var/lib/postgresql/data
+        chmod 0700 /var/lib/postgresql/data
+        
+        echo "Starting replica..."
+        exec su-exec postgres postgres
+    volumes:
+      - replica_data:/var/lib/postgresql/data
+
+volumes:
+  primary_data:
+  replica_data:
