@@ -20,3 +20,4 @@ Timestamp: 26-05-2026 13:10:00 WIB
 - Setup Terraform for Bronze layer infrastructure (S3)
 - Create scripts to extract data from replica and load into S3 (Bronze layer)
 - Create unit tests for data extraction and loading scripts
+Status: ✅ Done

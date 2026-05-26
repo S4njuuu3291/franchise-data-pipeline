@@ -60,6 +60,20 @@ services:
     volumes:
       - replica_data:/var/lib/postgresql/data
 
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: local_minio
+    ports:
+      - "9000:9000" # Port untuk API (yang dipakai SDK Go)
+      - "9001:9001" # Port untuk Web Console Dashboard
+    environment:
+      MINIO_ROOT_USER: minioadmin      # Access Key (Sama dengan kode Go)
+      MINIO_ROOT_PASSWORD: minioadmin  # Secret Key (Sama dengan kode Go)
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+
 volumes:
   primary_data:
   replica_data:
+  minio_data:
