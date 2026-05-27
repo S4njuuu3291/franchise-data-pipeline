@@ -94,30 +94,6 @@ func main() {
 	bucket_name := "franchise-pipeline-data-lake-bronze"
 
 	// =========================================================================
-	// PARSED 1: AMBIL DATA MASTER (Hanya diekstrak sekali, flat di S3 root)
-	// =========================================================================
-	master_queries := []QueryFileName{
-		{
-			Query: "SELECT menu_id, menu_name, category, CAST(base_price AS VARCHAR), CAST(price_tier_1 AS VARCHAR), " +
-				"CAST(price_tier_2 AS VARCHAR), CAST(price_tier_3 AS VARCHAR), CAST(is_promo_active AS VARCHAR), CAST(updated_at AS VARCHAR) FROM menu_master",
-			FileName: "menu_master/menu_master.csv", // Folder mandiri
-			Header:   []string{"menu_id", "menu_name", "category", "base_price", "price_tier_1", "price_tier_2", "price_tier_3", "is_promo_active", "updated_at"},
-			IsMaster: true,
-		},
-		{
-			Query:    "SELECT outlet_id, outlet_name, city, region_tier, CAST(created_at AS VARCHAR), CAST(updated_at AS VARCHAR) FROM outlet_master",
-			FileName: "outlet_master/outlet_master.csv", // Folder mandiri
-			Header:   []string{"outlet_id", "outlet_name", "city", "region_tier", "created_at", "updated_at"},
-			IsMaster: true,
-		},
-	}
-
-	log.Println("━━━ Memproses Sinkronisasi Data Master ━━━")
-	for _, q := range master_queries {
-		executeStreamingUpload(ctx, pool, s3Client, bucket_name, "", q)
-	}
-
-	// =========================================================================
 	// PARSED 2: LOOP INCREMENTAL TRANSAKSI (Dipisah per partisi Hive)
 	// =========================================================================
 	for d := startDate; !d.After(cutoffDate); d = d.AddDate(0, 0, 1) {
@@ -125,6 +101,19 @@ func main() {
 		log.Printf("━━━ [%s] Memproses partition: %s ━━━", d.Format("2006-01-02"), partitionPrefix)
 
 		tx_queries := []QueryFileName{
+			{
+				Query: "SELECT menu_id, menu_name, category, CAST(base_price AS VARCHAR), CAST(price_tier_1 AS VARCHAR), " +
+					"CAST(price_tier_2 AS VARCHAR), CAST(price_tier_3 AS VARCHAR), CAST(is_promo_active AS VARCHAR), CAST(updated_at AS VARCHAR) FROM menu_master",
+				FileName: "menu_master.csv", // Folder mandiri
+				Header:   []string{"menu_id", "menu_name", "category", "base_price", "price_tier_1", "price_tier_2", "price_tier_3", "is_promo_active", "updated_at"},
+				IsMaster: true,
+			},
+			{
+				Query:    "SELECT outlet_id, outlet_name, city, region_tier, CAST(created_at AS VARCHAR), CAST(updated_at AS VARCHAR) FROM outlet_master",
+				FileName: "outlet_master.csv", // Folder mandiri
+				Header:   []string{"outlet_id", "outlet_name", "city", "region_tier", "created_at", "updated_at"},
+				IsMaster: true,
+			},
 			{
 				Query: "SELECT order_id, outlet_id, cashier_id, CAST(total_amount AS VARCHAR), payment_method, CAST(created_at AS VARCHAR) " +
 					"FROM orders WHERE created_at::date = $1 LIMIT 1000", // Menggunakan format date matching cast
@@ -206,13 +195,9 @@ func executeStreamingUpload(ctx context.Context, pool DBPool, s3Client *s3.Clien
 	}()
 
 	var key string
-	if q.IsMaster {
-		key = q.FileName // e.g., menu_master/menu_master.csv
-	} else {
-		// Hive partition: table_name/year=YYYY/month=MM/day=DD/table_name.csv
-		tableName := strings.TrimSuffix(q.FileName, ".csv")
-		key = fmt.Sprintf("%s/%s/%s", tableName, prefix, q.FileName)
-	}
+	// Hive partition: table_name/year=YYYY/month=MM/day=DD/table_name.csv
+	tableName := strings.TrimSuffix(q.FileName, ".csv")
+	key = fmt.Sprintf("%s/%s/%s", tableName, prefix, q.FileName)
 
 	uploader := transfermanager.New(s3Client, func(o *transfermanager.Options) {
 		o.PartSizeBytes = 32 * 1024 * 1024

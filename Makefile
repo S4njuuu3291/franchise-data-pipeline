@@ -136,3 +136,8 @@ go-run:
 go-tidy:
 	@echo "Running go mod tidy ..."
 	cd $(GO_EXTRACT_DIR) && go mod tidy
+
+.PHONY: spark-transform
+spark-transform:
+	@echo "Running Spark transformation notebook ..."
+	cd dags/spark-transform && python transform.py
