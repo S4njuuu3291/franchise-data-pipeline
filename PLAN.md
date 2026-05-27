@@ -21,3 +21,18 @@ Timestamp: 26-05-2026 13:10:00 WIB
 - Create scripts to extract data from replica and load into S3 (Bronze layer)
 - Create unit tests for data extraction and loading scripts
 Status: ✅ Done
+
+Timestamp: 27-05-2026 07:00:00 WIB
+## Phase 4 — Setup Silver Layer Pipeline & AWS Infrastructure
+- Create Logic and Business Rules for Silver layer transformation
+- Setup Terraform for Silver layer infrastructure (S3, AWS Glue, Athena)
+- Create scripts to transform data from Bronze layer and load into Silver layer (AWS Glue)
+<!-- - Create unit tests for data transformation and loading scripts -->
+Status: ✅ Done
+
+Timestamp: 28-05-2026 07:00:00 WIB
+## Phase 5 — Setup Airflow Orchestration
+- Create Airflow DAGs to orchestrate Bronze and Silver layer pipelines
+- Schedule DAGs to run at appropriate intervals (e.g., daily)
+- Implement monitoring and alerting for DAG failures
+Status: ⏳ Planned
