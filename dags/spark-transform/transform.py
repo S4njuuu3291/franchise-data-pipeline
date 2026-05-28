@@ -16,34 +16,60 @@ from schemas import outlet_schema, menu_master_schema, orders_schema, order_item
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 log = logging.getLogger(__name__)
 
+# # ── Config ────────────────────────────────────────────────────────────
+# BRONZE_BUCKET = "s3a://franchise-pipeline-data-lake-bronze"
+# SILVER_BUCKET = "s3a://franchise-pipeline-data-lake-silver"
+# QUARANTINE_BUCKET = "s3a://franchise-pipeline-data-lake-quarantine"
+
 # ── Config ────────────────────────────────────────────────────────────
-BRONZE_BUCKET = "s3a://franchise-pipeline-data-lake-bronze"
-SILVER_BUCKET = "s3a://franchise-pipeline-data-lake-silver"
-QUARANTINE_BUCKET = "s3a://franchise-pipeline-data-lake-quarantine"
+BRONZE_BUCKET = "s3a://franchise-pipeline-dev-data-lake-bronze"
+SILVER_BUCKET = "s3a://franchise-pipeline-dev-data-lake-silver"
+QUARANTINE_BUCKET = "s3a://franchise-pipeline-dev-data-lake-quarantine"
 
+def bronze_master_to_silver(spark):
+    # ── Master tables (full load, flat path) ──────────────────────────
+    outlet_df = spark.read.csv(f"{BRONZE_BUCKET}/outlet_master/", header=True, schema=outlet_schema)
+    menu_df   = spark.read.csv(f"{BRONZE_BUCKET}/menu_master/", header=True, schema=menu_master_schema)
+    
+    # ── Write to Silver ───────────────────────────────────────────────
+    outlet_df.write \
+        .mode("overwrite") \
+        .parquet(f"{SILVER_BUCKET}/outlet_master/")
+    log.info(f"📤 outlet_master → {SILVER_BUCKET}/outlet_master")
+    
+    menu_df.write \
+        .mode("overwrite") \
+        .parquet(f"{SILVER_BUCKET}/menu_master/")
+    log.info(f"📤 menu_master → {SILVER_BUCKET}/menu_master/")
 
-def bronze_to_silver(spark, date):
+    return outlet_df, menu_df
+
+def bronze_to_silver(spark, date, outlet_df, menu_df):
     """Load Parquet dari Bronze → transform → write ke Silver."""
     partition = f"year={date[:4]}/month={date[5:7]}/day={date[8:10]}"
-
-    # ── Master tables (full load, flat path) ──────────────────────────
-    outlet_df = spark.read.csv(f"{BRONZE_BUCKET}/outlet_master/{partition}/", header=True, schema=outlet_schema)
-    menu_df   = spark.read.csv(f"{BRONZE_BUCKET}/menu_master/{partition}/", header=True, schema=menu_master_schema)
-
+    
     # ── Transaction tables (partitioned path) ─────────────────────────
     orders_df = spark.read.csv(
         f"{BRONZE_BUCKET}/orders/{partition}/", header=True, schema=orders_schema)
 
     order_items_df = spark.read.csv(
         f"{BRONZE_BUCKET}/order_items/{partition}/", header=True, schema=order_items_schema)
-    
 
     # Check orders total_amount vs sum of order_items subtotal
     order_items_agg = order_items_df.groupBy("order_id").sum("subtotal").withColumnRenamed("sum(subtotal)", "calculated_total")
     orders_with_calc = orders_df.join(order_items_agg, on="order_id", how="left")
-    discrepancies = orders_with_calc.filter(orders_with_calc.total_amount != orders_with_calc.calculated_total)
-    if discrepancies.count() > 0:
-        log.warning(f"⚠️ Ditemukan {discrepancies.count()} order dengan total_amount tidak sesuai dengan sum(subtotal) di order_items.")
+
+    null_calc = orders_with_calc.filter(F.col("calculated_total").isNull()).count()
+    if null_calc > 0:
+        log.warning(f"⚠️ {null_calc} order tidak memiliki order_items (calculated_total = NULL).")
+
+    discrepancies = orders_with_calc.filter(
+        F.col("calculated_total").isNotNull() &
+        (F.col("total_amount") != F.col("calculated_total"))
+    )
+    discrepancy_count = discrepancies.count()
+    if discrepancy_count > 0:
+        log.warning(f"⚠️ Ditemukan {discrepancy_count} order dengan total_amount tidak sesuai dengan sum(subtotal) di order_items.")
     else:
         log.info("✅ Semua order memiliki total_amount yang sesuai dengan sum(subtotal) di order_items.")
 
@@ -145,21 +171,13 @@ def bronze_to_silver(spark, date):
 
     silver_orders_df = orders_with_calc \
         .withColumn("data_quality_status",
-                    F.when(F.col("total_amount") == F.col("calculated_total"), "valid")
-                     .otherwise("MISMATCH TOTAL AMOUNT")) \
+                    F.when(
+                        (F.col("calculated_total").isNotNull()) &
+                        (F.col("total_amount") == F.col("calculated_total")),
+                        "valid"
+                    ).otherwise("MISMATCH TOTAL AMOUNT")) \
         .select("order_id", "outlet_id", "cashier_id", "total_amount",
                 "payment_method", "created_at", "data_quality_status")
-
-    # ── Write to Silver ───────────────────────────────────────────────
-    outlet_df.write \
-        .mode("overwrite") \
-        .parquet(f"{SILVER_BUCKET}/outlet_master/{partition}/")
-    log.info(f"📤 outlet_master → {SILVER_BUCKET}/outlet_master")
-    
-    menu_df.write \
-        .mode("overwrite") \
-        .parquet(f"{SILVER_BUCKET}/menu_master/{partition}/")
-    log.info(f"📤 menu_master → {SILVER_BUCKET}/menu_master/{partition}/")
 
     silver_orders_df.write \
         .mode("overwrite") \
@@ -171,14 +189,14 @@ def bronze_to_silver(spark, date):
         .parquet(f"{SILVER_BUCKET}/order_items/{partition}/")
 
     # ── Quarantine Write (jika ada data tidak valid) ───────────────────────────────
-    if discrepancies.count() > 0:
+    if discrepancy_count > 0:
         discrepancies.write \
             .mode("overwrite") \
             .parquet(f"{QUARANTINE_BUCKET}/orders_discrepancies/{partition}/")
         log.info(f"📤 Discrepancies orders → {QUARANTINE_BUCKET}/orders_discrepancies/{partition}/")
 
 def main():
-    spark = SparkSession.builder.remote("sc://localhost:15002").appName("Bronze-To-Silver-Transform").getOrCreate()
+    spark = SparkSession.builder.remote("sc://localhost:15002").appName("Bronze-To-Silver-Transform").config("spark.sql.session.timeZone", "UTC").getOrCreate()
     log.info(f"✅ Spark ready — v{spark.version}")
 
     start_date = "2026-02-25"
@@ -186,10 +204,11 @@ def main():
 
     total_start = time.time()
 
+    outlet_df, menu_df = bronze_master_to_silver(spark)
+
     for date in [start_date, end_date]:
         log.info(f"━━━ Processing date: {date} ━━━")
-        bronze_to_silver(spark, date)
-
+        bronze_to_silver(spark, date, outlet_df, menu_df)
         break
 
     elapsed = time.time() - total_start

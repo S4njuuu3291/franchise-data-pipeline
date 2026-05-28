@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: stg_orders
+    description: "Staging model for orders data from Silver layer"
+    columns:
+      - name: order_id
+        description: "Primary key order"
+        tests:
+          - unique
+          - not_null
+      - name: outlet_id
+        description: "Foreign key ke outlet_master"
+      - name: cashier_id
+        description: "ID kasir"
+      - name: total_amount
+        description: "Total nilai pesanan"
+      - name: payment_method
+        description: "Metode pembayaran (cash/debit/credit/qris)"
+      - name: created_at
+        description: "Timestamp order dibuat"
+      - name: data_quality_status
+        description: "Status kualitas data (passed/failed)"
+
+  - name: stg_order_items
+    description: "Staging model for order items data from Silver layer"
+    columns:
+      - name: item_id
+        description: "Primary key item"
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: "Foreign key ke orders"
+      - name: menu_id
+        description: "Foreign key ke menu_master"
+      - name: quantity
+        description: "Jumlah item dipesan"
+      - name: price_per_item
+        description: "Harga per item saat transaksi"
+      - name: subtotal
+        description: "Subtotal (quantity * price_per_item)"

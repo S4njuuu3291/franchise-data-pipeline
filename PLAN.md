@@ -30,9 +30,20 @@ Timestamp: 27-05-2026 07:00:00 WIB
 <!-- - Create unit tests for data transformation and loading scripts -->
 Status: ✅ Done
 
-Timestamp: 28-05-2026 07:00:00 WIB
-## Phase 5 — Setup Airflow Orchestration
-- Create Airflow DAGs to orchestrate Bronze and Silver layer pipelines
-- Schedule DAGs to run at appropriate intervals (e.g., daily)
+Timestamp: 28-05-2026 13:00:00 WIB
+## Phase 5 — dbt Modeling & Testing
+- Setup Terraform bucket for athena query results
+- Create dbt models for Silver layer data
+- Create dbt snapshots for slowly changing dimensions (SCD)
+- Create dbt models for Gold layer data (mart tables)
+- Create dbt tests for data quality and integrity
+Status: ✅ Done
+
+## Phase 6 — Setup Airflow Orchestration
+- Create dbt documentation for data models and lineage
+- Prepare dbt commands for Airflow integration
+- Setup Terraform for AWS Glue
+- Setup Airflow infrastructure
+- Create Airflow DAGs to orchestrate Bronze, Silver, and dbt run/test
 - Implement monitoring and alerting for DAG failures
-Status: ⏳ Planned
+Status: Ongoing

@@ -86,12 +86,44 @@ func main() {
 	log.Printf("Rentang incremental load: %s → %s",
 		startDate.Format("2006-01-02"), cutoffDate.Format("2006-01-02"))
 
-	s3Client, err := InitS3Client(ctx, true)
+	// s3Client, err := InitS3Client(ctx, true)
+	// if err != nil {
+	// 	log.Fatalf("Gagal inisialisasi S3: %v", err)
+	// }
+
+	// bucket_name := "franchise-pipeline-data-lake-bronze"
+
+	s3Client, err := InitS3Client(ctx, false)
 	if err != nil {
 		log.Fatalf("Gagal inisialisasi S3: %v", err)
 	}
 
-	bucket_name := "franchise-pipeline-data-lake-bronze"
+	bucket_name := "franchise-pipeline-dev-data-lake-bronze"
+
+	// =========================================================================
+	// MASTER DATA — Flat load (tanpa partisi), cukup sekali
+	// =========================================================================
+	log.Printf("━━━ Memuat master data (flat) ━━━")
+
+	master_queries := []QueryFileName{
+		{
+			Query: "SELECT menu_id, menu_name, category, CAST(base_price AS VARCHAR), CAST(price_tier_1 AS VARCHAR), " +
+				"CAST(price_tier_2 AS VARCHAR), CAST(price_tier_3 AS VARCHAR), CAST(is_promo_active AS VARCHAR), CAST(updated_at AS VARCHAR) FROM menu_master",
+			FileName: "menu_master.csv",
+			Header:   []string{"menu_id", "menu_name", "category", "base_price", "price_tier_1", "price_tier_2", "price_tier_3", "is_promo_active", "updated_at"},
+			IsMaster: true,
+		},
+		{
+			Query:    "SELECT outlet_id, outlet_name, city, region_tier, CAST(created_at AS VARCHAR), CAST(updated_at AS VARCHAR) FROM outlet_master",
+			FileName: "outlet_master.csv",
+			Header:   []string{"outlet_id", "outlet_name", "city", "region_tier", "created_at", "updated_at"},
+			IsMaster: true,
+		},
+	}
+
+	for _, q := range master_queries {
+		executeStreamingUpload(ctx, pool, s3Client, bucket_name, "", q)
+	}
 
 	// =========================================================================
 	// PARSED 2: LOOP INCREMENTAL TRANSAKSI (Dipisah per partisi Hive)
@@ -102,21 +134,8 @@ func main() {
 
 		tx_queries := []QueryFileName{
 			{
-				Query: "SELECT menu_id, menu_name, category, CAST(base_price AS VARCHAR), CAST(price_tier_1 AS VARCHAR), " +
-					"CAST(price_tier_2 AS VARCHAR), CAST(price_tier_3 AS VARCHAR), CAST(is_promo_active AS VARCHAR), CAST(updated_at AS VARCHAR) FROM menu_master",
-				FileName: "menu_master.csv", // Folder mandiri
-				Header:   []string{"menu_id", "menu_name", "category", "base_price", "price_tier_1", "price_tier_2", "price_tier_3", "is_promo_active", "updated_at"},
-				IsMaster: true,
-			},
-			{
-				Query:    "SELECT outlet_id, outlet_name, city, region_tier, CAST(created_at AS VARCHAR), CAST(updated_at AS VARCHAR) FROM outlet_master",
-				FileName: "outlet_master.csv", // Folder mandiri
-				Header:   []string{"outlet_id", "outlet_name", "city", "region_tier", "created_at", "updated_at"},
-				IsMaster: true,
-			},
-			{
 				Query: "SELECT order_id, outlet_id, cashier_id, CAST(total_amount AS VARCHAR), payment_method, CAST(created_at AS VARCHAR) " +
-					"FROM orders WHERE created_at::date = $1 LIMIT 1000", // Menggunakan format date matching cast
+					"FROM orders WHERE created_at::date = $1",
 				FileName: "orders.csv",
 				Header:   []string{"order_id", "outlet_id", "cashier_id", "total_amount", "payment_method", "created_at"},
 				Args:     []interface{}{d.Format("2006-01-02")},
@@ -124,7 +143,7 @@ func main() {
 			},
 			{
 				Query: "SELECT oi.item_id, oi.order_id, oi.menu_id, oi.quantity, CAST(oi.price_per_item AS VARCHAR), CAST(oi.subtotal AS VARCHAR) " +
-					"FROM order_items oi JOIN orders o ON oi.order_id = o.order_id WHERE o.created_at::date = $1 LIMIT 1000",
+					"FROM order_items oi JOIN orders o ON oi.order_id = o.order_id WHERE o.created_at::date = $1",
 				FileName: "order_items.csv",
 				Header:   []string{"item_id", "order_id", "menu_id", "quantity", "price_per_item", "subtotal"},
 				Args:     []interface{}{d.Format("2006-01-02")},
@@ -194,10 +213,16 @@ func executeStreamingUpload(ctx context.Context, pool DBPool, s3Client *s3.Clien
 		}
 	}()
 
-	var key string
-	// Hive partition: table_name/year=YYYY/month=MM/day=DD/table_name.csv
 	tableName := strings.TrimSuffix(q.FileName, ".csv")
-	key = fmt.Sprintf("%s/%s/%s", tableName, prefix, q.FileName)
+
+	var key string
+	if q.IsMaster {
+		// Flat path — tanpa partisi (master data)
+		key = fmt.Sprintf("%s/%s", tableName, q.FileName)
+	} else {
+		// Hive partition: table_name/year=YYYY/month=MM/day=DD/table_name.csv
+		key = fmt.Sprintf("%s/%s/%s", tableName, prefix, q.FileName)
+	}
 
 	uploader := transfermanager.New(s3Client, func(o *transfermanager.Options) {
 		o.PartSizeBytes = 32 * 1024 * 1024
