@@ -73,3 +73,40 @@ resource "aws_s3_bucket_public_access_block" "data_lake_quarantine_privacy" {
   restrict_public_buckets = true
 }
 
+# Bucket: Athena query results
+resource "aws_s3_bucket" "athena_results" {
+    bucket = "${local.resource_prefix}-athena-query-results"
+
+    lifecycle {
+      prevent_destroy = false
+    }
+}
+
+# Public access: athena results
+resource "aws_s3_bucket_public_access_block" "athena_results_privacy" {
+  bucket = aws_s3_bucket.athena_results.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# Bucket: gold (aggregated / analytics-ready data)
+resource "aws_s3_bucket" "data_lake_gold" {
+    bucket = "${local.resource_prefix}-data-lake-gold"
+
+    lifecycle {
+      prevent_destroy = false
+    }
+}
+
+# Public access: gold
+resource "aws_s3_bucket_public_access_block" "data_lake_gold_privacy" {
+  bucket = aws_s3_bucket.data_lake_gold.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}

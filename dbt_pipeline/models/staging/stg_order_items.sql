@@ -1,0 +1,1 @@
+SELECT * FROM {{ source('silver_data', 'order_items') }}

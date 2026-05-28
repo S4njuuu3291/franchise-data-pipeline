@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: silver_data
+    database: awsdatacatalog
+    schema: franchise_pipeline_dev_athena_db
+    tables:
+      - name: menu_master
+      - name: outlet_master
+      - name: orders
+      - name: order_items

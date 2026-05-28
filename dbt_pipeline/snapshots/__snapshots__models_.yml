@@ -1,0 +1,66 @@
+version: 2
+
+snapshots:
+  - name: snp_menu_master
+    description: "Snapshot SCD Type 2 — melacak perubahan harga & kategori menu"
+    columns:
+      - name: menu_id
+        description: "Primary key menu (cast ke VARCHAR untuk dbt)"
+        tests:
+          - unique
+          - not_null
+      - name: menu_name
+        description: "Nama menu/produk"
+      - name: category
+        description: "Kategori menu"
+      - name: base_price
+        description: "Harga dasar menu"
+      - name: price_tier_1
+        description: "Harga tier 1"
+      - name: price_tier_2
+        description: "Harga tier 2"
+      - name: price_tier_3
+        description: "Harga tier 3"
+      - name: is_promo_active
+        description: "Status promo (true/false)"
+      - name: updated_at
+        description: "Timestamp update — di sini dbt tracking perubahan"
+      - name: dbt_valid_from
+        description: "Otomatis dari dbt — record mulai valid"
+      - name: dbt_valid_to
+        description: "Otomatis dari dbt — record berakhir valid (NULL = masih aktif)"
+      - name: year
+        description: "Partisi tahun"
+      - name: month
+        description: "Partisi bulan"
+      - name: day
+        description: "Partisi hari"
+
+  - name: snp_outlet_master
+    description: "Snapshot SCD Type 2 — melacak perubahan data outlet"
+    columns:
+      - name: outlet_id
+        description: "Primary key outlet (cast ke VARCHAR untuk dbt)"
+        tests:
+          - unique
+          - not_null
+      - name: outlet_name
+        description: "Nama outlet/cabang"
+      - name: city
+        description: "Kota lokasi outlet"
+      - name: region_tier
+        description: "Tier region"
+      - name: created_at
+        description: "Timestamp dibuat"
+      - name: updated_at
+        description: "Timestamp update — di sini dbt tracking perubahan"
+      - name: dbt_valid_from
+        description: "Otomatis dari dbt — record mulai valid"
+      - name: dbt_valid_to
+        description: "Otomatis dari dbt — record berakhir valid (NULL = masih aktif)"
+      - name: year
+        description: "Partisi tahun"
+      - name: month
+        description: "Partisi bulan"
+      - name: day
+        description: "Partisi hari"
