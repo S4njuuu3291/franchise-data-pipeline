@@ -1,0 +1,28 @@
+FROM apache/airflow:3.2.1-python3.12
+
+USER root
+
+# Install dependensi sistem & Go (tarball official, support go 1.25)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    wget \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && wget -q https://go.dev/dl/go1.24.2.linux-amd64.tar.gz -O /tmp/go.tar.gz \
+    && rm -rf /usr/local/go \
+    && tar -C /usr/local -xzf /tmp/go.tar.gz \
+    && rm /tmp/go.tar.gz
+
+ENV PATH="/usr/local/go/bin:${PATH}"
+
+USER airflow
+
+# Pre-cache Go modules supaya go run gak donlot tiap kali DAG jalan
+COPY --chown=airflow:0 dags/go-extract/go.mod dags/go-extract/go.sum /tmp/go-extract/
+RUN cd /tmp/go-extract && go mod download && rm -rf /tmp/go-extract
+
+# Install provider AWS, astronomer-cosmos & dbt untuk dbt integration
+RUN pip install --no-cache-dir \
+    apache-airflow-providers-amazon \
+    "astronomer-cosmos>=1.12.0" \
+    "dbt-athena-community==1.10.0"

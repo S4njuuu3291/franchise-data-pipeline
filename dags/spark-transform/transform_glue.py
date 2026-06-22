@@ -1,34 +1,31 @@
 """
-transform.py — Bronze → Silver pipeline.
+transform_glue.py — Bronze → Silver pipeline (AWS Glue version).
 
-Membaca data Parquet dari MinIO Bronze bucket, melakukan transformasi,
-lalu menyimpan hasil ke Silver bucket.
+Membaca data dari S3 Bronze bucket, melakukan transformasi & validasi,
+lalu menyimpan hasil ke Silver & Quarantine bucket.
 """
 
 import sys
 import logging
 import time
-import yaml
 import os
-import argparse
 from datetime import datetime, timedelta
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
-sys.path.insert(0, "..")
-from schemas import outlet_schema, menu_master_schema, orders_schema, order_items_schema
+from pyspark import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
+from modules.schemas import outlet_schema, menu_master_schema, orders_schema, order_items_schema
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 log = logging.getLogger(__name__)
 
-# ── Config dari YAML ──────────────────────────────────────────────────
-_config_path = os.environ.get("PIPELINE_CONFIG_PATH") or \
-    os.path.join(os.path.dirname(__file__), "../../config/pipeline-config.yaml")
-with open(_config_path) as _f:
-    _cfg = yaml.safe_load(_f)["storage"]
-
-BRONZE_BUCKET = f"s3a://{_cfg['bronze']}"
-SILVER_BUCKET = f"s3a://{_cfg['silver']}"
-QUARANTINE_BUCKET = f"s3a://{_cfg['quarantine']}"
+# ── Config ────────────────────────────────────────────────────────────
+# Utama: dari Glue job args (--bronze-bucket, --silver-bucket, --quarantine-bucket)
+# Fallback: dari YAML config (development lokal) atau env var
+BRONZE_BUCKET = os.environ.get("BRONZE_BUCKET") or "s3a://franchise-pipeline-dev-data-lake-bronze"
+SILVER_BUCKET = os.environ.get("SILVER_BUCKET") or "s3a://franchise-pipeline-dev-data-lake-silver"
+QUARANTINE_BUCKET = os.environ.get("QUARANTINE_BUCKET") or "s3a://franchise-pipeline-dev-data-lake-quarantine"
 
 def bronze_master_to_silver(spark):
     # ── Master tables (full load, flat path) ──────────────────────────
@@ -199,25 +196,6 @@ def bronze_to_silver(spark, date, outlet_df, menu_df):
             .parquet(f"{QUARANTINE_BUCKET}/orders_discrepancies/{partition}/")
         log.info(f"📤 Discrepancies orders → {QUARANTINE_BUCKET}/orders_discrepancies/{partition}/")
 
-def parse_dates():
-    """Parse CLI args dengan pola sama seperti main.go (--date / --start-date / --end-date)."""
-    parser = argparse.ArgumentParser(description="Bronze → Silver transformation")
-    parser.add_argument("--date", help="Tanggal tunggal (YYYY-MM-DD)")
-    parser.add_argument("--start-date", help="Tanggal mulai (YYYY-MM-DD)")
-    parser.add_argument("--end-date", help="Tanggal selesai (YYYY-MM-DD)")
-    args = parser.parse_args()
-
-    today = datetime.utcnow().strftime("%Y-%m-%d")
-
-    if args.date:
-        return args.date, args.date
-    if args.start_date and args.end_date:
-        return args.start_date, args.end_date
-    if args.start_date:
-        return args.start_date, args.start_date
-    return today, today
-
-
 def date_range(start_str, end_str):
     """Yield dates from start to end inclusive."""
     start = datetime.strptime(start_str, "%Y-%m-%d")
@@ -229,12 +207,56 @@ def date_range(start_str, end_str):
 
 
 def main():
-    spark = SparkSession.builder.remote("sc://localhost:15002").appName("Bronze-To-Silver-Transform").config("spark.sql.session.timeZone", "UTC").getOrCreate()
-    log.info(f"✅ Spark ready — v{spark.version}")
+    # ── Glue Init ─────────────────────────────────────────────────────
+    # JOB_NAME otomatis dari AWS Glue, fallback "local" untuk development
+    raw_args = {}
+    i = 1
+    while i < len(sys.argv):
+        arg = sys.argv[i]
+        if arg.startswith("--") and "=" in arg:
+            # Format: --key=value
+            k, v = arg.split("=", 1)
+            raw_args[k] = v
+        elif arg.startswith("--") and i + 1 < len(sys.argv) and not sys.argv[i + 1].startswith("--"):
+            # Format: --key value
+            raw_args[arg] = sys.argv[i + 1]
+            i += 1
+        i += 1
+    job_name = raw_args.get("--JOB_NAME") or raw_args.get("JOB_NAME", "local")
 
-    start_date, end_date = parse_dates()
+    sc = SparkContext.getOrCreate()
+    glueContext = GlueContext(sc)
+    spark = glueContext.spark_session
+    job = Job(glueContext)
+    job.init(job_name, raw_args)
+
+    log.info(f"✅ Glue Spark ready — v{spark.version}")
+
+    # ── Override bucket names from Glue job args ──────────────────────
+    if raw_args.get("--bronze-bucket"):
+        global BRONZE_BUCKET, SILVER_BUCKET, QUARANTINE_BUCKET
+        BRONZE_BUCKET = f"s3a://{raw_args['--bronze-bucket']}"
+        SILVER_BUCKET = f"s3a://{raw_args['--silver-bucket']}"
+        QUARANTINE_BUCKET = f"s3a://{raw_args['--quarantine-bucket']}"
+
+    # ── Parse dates ───────────────────────────────────────────────────
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    raw_date = raw_args.get("--date", "")
+    raw_start = raw_args.get("--start-date", "")
+    raw_end = raw_args.get("--end-date", "")
+
+    if raw_date:
+        start_date = end_date = raw_date
+    elif raw_start and raw_end:
+        start_date, end_date = raw_start, raw_end
+    elif raw_start:
+        start_date = end_date = raw_start
+    else:
+        start_date = end_date = today
+
     log.info(f"Rentang transformasi: {start_date} → {end_date}")
 
+    # ── Pipeline ──────────────────────────────────────────────────────
     total_start = time.time()
 
     outlet_df, menu_df = bronze_master_to_silver(spark)
@@ -245,7 +267,8 @@ def main():
 
     elapsed = time.time() - total_start
     log.info(f"✅ All done in {elapsed:.2f}s")
-    spark.stop()
+
+    job.commit()
 
 
 if __name__ == "__main__":

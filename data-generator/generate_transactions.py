@@ -1,8 +1,21 @@
 import argparse
 import random
+import yaml
+import os
 from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import execute_values
+
+# =========================================================================
+# Load Konfigurasi dari YAML
+# =========================================================================
+_config_path = os.path.join(os.path.dirname(__file__), "simulation_config.yaml")
+with open(_config_path, "r") as _f:
+    _config = yaml.safe_load(_f)
+
+_sim = _config["simulation"]
+VOLUME_SCALE = _sim.get("volume_scale", 1.0)
+TX_RANGES = _sim["tx_ranges_per_outlet"]
 
 # =========================================================================
 # 1. KONSTANTA KONTROL DISTRIBUSI & ANOMALI
@@ -93,13 +106,10 @@ def generate_daily_data(target_date_str):
     
     # Loop Utama melewati 1.000 Outlet
     for outlet in outlets:
-        # Determine base volume based on tier
-        if outlet["tier"] == "Tier 1":
-            tx_count = random.randint(250, 400)
-        elif outlet["tier"] == "Tier 2":
-            tx_count = random.randint(150, 250)
-        else:
-            tx_count = random.randint(70, 150)
+        # Determine base volume based on tier (from config, then apply volume_scale)
+        tier_key = outlet["tier"].lower().replace(" ", "_")
+        tx_min, tx_max = TX_RANGES.get(tier_key, [70, 150])
+        tx_count = max(1, int(random.randint(tx_min, tx_max) * VOLUME_SCALE))
             
         # Terapkan Weekend Surge (Multiplier 1.3 - 1.5)
         if is_weekend:

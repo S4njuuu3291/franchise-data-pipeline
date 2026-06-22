@@ -40,10 +40,16 @@ Timestamp: 28-05-2026 13:00:00 WIB
 Status: ✅ Done
 
 ## Phase 6 — Setup Airflow Orchestration
-- Create dbt documentation for data models and lineage
-- Prepare dbt commands for Airflow integration
-- Setup Terraform for AWS Glue
-- Setup Airflow infrastructure
-- Create Airflow DAGs to orchestrate Bronze, Silver, and dbt run/test
-- Implement monitoring and alerting for DAG failures
+- Setup Airflow infrastructure ✅ Done
+- Create DAG task for bronze ✅ Done
+- Setup local Glue development environment ✅ Done
+- Test Glue transformation script locally ✅ Done
+- Setup Terraform for AWS Glue, upload and test ✅ Done
+- Create DAG task for silver ✅ Done
+
+
+<!-- - Create dbt documentation for data models and lineage -->
+<!-- - Dockerized the dbt project for Airflow integration -->
+<!-- - Prepare dbt commands for Airflow integration -->
+<!-- - Implement monitoring and alerting for DAG failures -->
 Status: Ongoing
