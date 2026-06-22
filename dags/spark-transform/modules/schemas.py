@@ -1,6 +1,6 @@
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, DoubleType, TimestampType
 
-# ── Schema definitions (sesuai SOURCE-SCHEMA.sql & struktur-oltp.yaml) ──
+# ── Schema definitions (untuk Glue job — self-contained) ──
 
 outlet_schema = StructType([
     StructField("outlet_id",    IntegerType(),   True),

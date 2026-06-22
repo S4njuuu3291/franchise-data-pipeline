@@ -1,0 +1,10 @@
+# =============================================================================
+# Pipeline Configuration — Shared Bucket Names
+# =============================================================================
+# File ini digunakan bersama oleh go-extract (Go) dan spark-transform (Python).
+# Catatan: Spark membutuhkan prefix "s3a://", akan ditambahkan di kode.
+
+storage:
+  bronze: "franchise-pipeline-dev-data-lake-bronze"
+  silver: "franchise-pipeline-dev-data-lake-silver"
+  quarantine: "franchise-pipeline-dev-data-lake-quarantine"

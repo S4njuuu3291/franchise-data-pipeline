@@ -121,3 +121,36 @@ output "athena_database_name" {
   description = "Nama database Athena (dev)"
   value       = module.base.athena_database_name
 }
+
+# Glue Scripts Bucket
+output "glue_scripts_bucket_id" {
+  description = "ID dari S3 bucket Glue scripts (dev)"
+  value       = module.base.glue_scripts_bucket_id
+}
+
+output "glue_scripts_bucket_arn" {
+  description = "ARN dari S3 bucket Glue scripts (dev)"
+  value       = module.base.glue_scripts_bucket_arn
+}
+
+# Glue IAM Role
+output "glue_role_name" {
+  description = "Nama IAM Role Glue (dev)"
+  value       = module.base.glue_role_name
+}
+
+output "glue_role_arn" {
+  description = "ARN IAM Role Glue (dev)"
+  value       = module.base.glue_role_arn
+}
+
+# Glue Job
+output "glue_job_name" {
+  description = "Nama Glue Job transform (dev)"
+  value       = module.base.glue_job_name
+}
+
+output "glue_job_arn" {
+  description = "ARN Glue Job transform (dev)"
+  value       = module.base.glue_job_arn
+}

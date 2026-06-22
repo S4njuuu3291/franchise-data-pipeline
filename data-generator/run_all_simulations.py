@@ -1,8 +1,16 @@
 from datetime import datetime, timedelta
 import subprocess
+import yaml
+import os
 
-start_date = datetime(2026, 5, 16)
-end_date = datetime(2026, 5, 25)
+# Load konfigurasi dari file YAML
+config_path = os.path.join(os.path.dirname(__file__), "simulation_config.yaml")
+with open(config_path, "r") as f:
+    config = yaml.safe_load(f)
+
+sim = config["simulation"]
+start_date = datetime.strptime(sim["start_date"], "%Y-%m-%d")
+end_date = datetime.strptime(sim["end_date"], "%Y-%m-%d")
 
 current_date = start_date
 overall_start = datetime.now()

@@ -121,3 +121,36 @@ output "athena_database_name" {
   description = "Nama database Athena"
   value       = aws_athena_database.franchise.name
 }
+
+# Glue Scripts Bucket
+output "glue_scripts_bucket_id" {
+  description = "ID dari S3 bucket untuk Glue scripts"
+  value       = aws_s3_bucket.scripts.id
+}
+
+output "glue_scripts_bucket_arn" {
+  description = "ARN dari S3 bucket untuk Glue scripts"
+  value       = aws_s3_bucket.scripts.arn
+}
+
+# Glue IAM Role
+output "glue_role_name" {
+  description = "Nama IAM Role untuk Glue"
+  value       = aws_iam_role.glue_role.name
+}
+
+output "glue_role_arn" {
+  description = "ARN dari IAM Role untuk Glue"
+  value       = aws_iam_role.glue_role.arn
+}
+
+# Glue Job
+output "glue_job_name" {
+  description = "Nama Glue Job transform"
+  value       = aws_glue_job.transform.name
+}
+
+output "glue_job_arn" {
+  description = "ARN dari Glue Job transform"
+  value       = aws_glue_job.transform.arn
+}

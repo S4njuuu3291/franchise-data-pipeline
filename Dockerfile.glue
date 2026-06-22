@@ -1,0 +1,8 @@
+FROM public.ecr.aws/glue/aws-glue-libs:5
+
+USER root
+
+# Install dependensi Python tambahan
+RUN pip install --no-cache-dir pyyaml
+
+USER hadoop

@@ -2,22 +2,70 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/csv"
+	"flag"
 	"fmt"
 	"io"
 	"log"
-	"net/http"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"gopkg.in/yaml.v3"
 )
+
+// ── Config structs ──────────────────────────────────────────────────────────
+type BucketConfig struct {
+	Bronze     string `yaml:"bronze"`
+	Silver     string `yaml:"silver"`
+	Quarantine string `yaml:"quarantine"`
+}
+
+type PipelineConfig struct {
+	Storage BucketConfig `yaml:"storage"`
+}
+
+func loadBucketConfig() (BucketConfig, error) {
+	cfgPath := os.Getenv("PIPELINE_CONFIG_PATH")
+	if cfgPath == "" {
+		// Fallback: cari di beberapa kemungkinan lokasi
+		candidates := []string{
+			"config/pipeline-config.yaml",
+			"../../config/pipeline-config.yaml",
+			"/opt/airflow/config/pipeline-config.yaml",
+		}
+		for _, p := range candidates {
+			if _, err := os.Stat(p); err == nil {
+				cfgPath = p
+				break
+			}
+		}
+	}
+	if cfgPath == "" {
+		return BucketConfig{}, fmt.Errorf("tidak menemukan pipeline-config.yaml. Set env PIPELINE_CONFIG_PATH")
+	}
+	data, err := os.ReadFile(cfgPath)
+	if err != nil {
+		return BucketConfig{}, fmt.Errorf("baca file config: %w", err)
+	}
+	var cfg PipelineConfig
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return BucketConfig{}, fmt.Errorf("parse yaml: %w", err)
+	}
+	return cfg.Storage, nil
+}
+
+func getEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
 
 type QueryFileName struct {
 	Query    string
@@ -27,27 +75,7 @@ type QueryFileName struct {
 	IsMaster bool // Tambahkan flag untuk membedakan perlakuan S3 Key dan Loop
 }
 
-func InitS3Client(ctx context.Context, useMinIO bool) (*s3.Client, error) {
-	if useMinIO {
-		cfg, err := config.LoadDefaultConfig(ctx,
-			config.WithBaseEndpoint("http://localhost:9000"),
-			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("minioadmin", "minioadmin", "")),
-			config.WithRegion("ap-southeast-1"),
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		tr := &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-			o.HTTPClient = &http.Client{Transport: tr}
-			o.UsePathStyle = true
-		})
-		return client, nil
-	}
-
+func InitS3Client(ctx context.Context) (*s3.Client, error) {
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion("ap-southeast-1"))
 	if err != nil {
 		return nil, err
@@ -77,28 +105,85 @@ func main() {
 	ctx := context.Background()
 	startTime := time.Now()
 
-	connStr := "postgres://replicator_user:supersecretpassword@localhost:5432/main_db?sslmode=disable"
-	pool := newPool(ctx, connStr)
-	defer pool.Close()
+	// =========================================================================
+	// CLI ARGUMENTS — Parsing tanggal start & cutoff
+	//   - Tanpa argumen           → hari ini (today)
+	//   - 1 argumen (--date)      → tanggal tersebut (start == cutoff)
+	//   - 2 argumen (--start-date & --end-date) → range tanggal
+	// =========================================================================
+	var (
+		startDateStr string
+		endDateStr   string
+		singleDate   string
+	)
+	flag.StringVar(&singleDate, "date", "", "Tanggal tunggal (YYYY-MM-DD). Jika diisi, --start-date dan --end-date diabaikan.")
+	flag.StringVar(&startDateStr, "start-date", "", "Tanggal mulai (YYYY-MM-DD)")
+	flag.StringVar(&endDateStr, "end-date", "", "Tanggal selesai (YYYY-MM-DD)")
+	flag.Parse()
 
-	startDate := time.Date(2026, 2, 25, 0, 0, 0, 0, time.UTC)
-	cutoffDate := time.Date(2026, 2, 25, 0, 0, 0, 0, time.UTC)
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+
+	var startDate, cutoffDate time.Time
+
+	switch {
+	case singleDate != "":
+		// 1 argumen: jalankan untuk hari itu saja
+		parsed, err := time.Parse("2006-01-02", singleDate)
+		if err != nil {
+			log.Fatalf("Format --date tidak valid: %v. Gunakan YYYY-MM-DD", err)
+		}
+		startDate = parsed
+		cutoffDate = parsed
+
+	case startDateStr != "" && endDateStr != "":
+		// 2 argumen: range tanggal
+		var err error
+		startDate, err = time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			log.Fatalf("Format --start-date tidak valid: %v. Gunakan YYYY-MM-DD", err)
+		}
+		cutoffDate, err = time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			log.Fatalf("Format --end-date tidak valid: %v. Gunakan YYYY-MM-DD", err)
+		}
+
+	case startDateStr != "" && endDateStr == "":
+		// Hanya --start-date diisi → jalankan untuk hari itu saja
+		parsed, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			log.Fatalf("Format --start-date tidak valid: %v. Gunakan YYYY-MM-DD", err)
+		}
+		startDate = parsed
+		cutoffDate = parsed
+
+	default:
+		// Tanpa argumen → hari ini
+		startDate = today
+		cutoffDate = today
+	}
+
 	log.Printf("Rentang incremental load: %s → %s",
 		startDate.Format("2006-01-02"), cutoffDate.Format("2006-01-02"))
 
-	// s3Client, err := InitS3Client(ctx, true)
-	// if err != nil {
-	// 	log.Fatalf("Gagal inisialisasi S3: %v", err)
-	// }
+	dbHost := getEnv("PG_HOST", "localhost")
+	dbPort := getEnv("PG_PORT", "5432")
+	connStr := fmt.Sprintf("postgres://replicator_user:supersecretpassword@%s:%s/main_db?sslmode=disable", dbHost, dbPort)
+	pool := newPool(ctx, connStr)
+	defer pool.Close()
 
-	// bucket_name := "franchise-pipeline-data-lake-bronze"
+	// Load bucket config dari YAML
+	bucketConfig, err := loadBucketConfig()
+	if err != nil {
+		log.Fatalf("Gagal load bucket config: %v", err)
+	}
+	log.Printf("Bucket bronze: %s", bucketConfig.Bronze)
 
-	s3Client, err := InitS3Client(ctx, false)
+	s3Client, err := InitS3Client(ctx)
 	if err != nil {
 		log.Fatalf("Gagal inisialisasi S3: %v", err)
 	}
 
-	bucket_name := "franchise-pipeline-dev-data-lake-bronze"
+	bucket_name := bucketConfig.Bronze
 
 	// =========================================================================
 	// MASTER DATA — Flat load (tanpa partisi), cukup sekali
