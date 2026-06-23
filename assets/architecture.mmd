@@ -1,0 +1,43 @@
+flowchart LR
+    %% ── Style Definitions ──────────────────────────────────────────────
+    classDef source fill:#336791,color:#fff,stroke-width:1px
+    classDef bronze fill:#CD7F32,color:#fff,stroke-width:1px
+    classDef silver fill:#7F8C8D,color:#fff,stroke-width:1px
+    classDef gold fill:#F1C40F,color:#000,stroke-width:1px
+    classDef compute fill:#E67E22,color:#fff,stroke-width:1px
+    classDef target fill:#2ECC71,color:#fff,stroke-width:1px
+
+    %% ── Pipeline Flow ──────────────────────────────────────────────────
+    subgraph SRC [Source]
+        PG[(PostgreSQL DB)]:::source
+    end
+
+    subgraph INGEST [Ingestion & Raw]
+        Go[Go Extractor]:::compute
+        B_S3[Bronze: Raw S3\nCSV Files]:::bronze
+    end
+
+    subgraph TRANS [Transformation]
+        Glue[AWS Glue Job]:::compute
+        S_S3[Silver: Cleaned S3\nParquet]:::silver
+        Q_S3[Quarantine S3\nBad Records]:::silver
+    end
+
+    subgraph BI_LAYER [Analytics & Serving]
+        dbt[dbt + Athena]:::compute
+        G_S3[Gold: Dim & Fact\nTables]:::gold
+    end
+
+    %% ── Connections ────────────────────────────────────────────────────
+    PG --> Go
+    Go --> B_S3
+    
+    B_S3 --> Glue
+    Glue --> S_S3
+    Glue --> Q_S3
+    
+    S_S3 --> dbt
+    dbt --> G_S3
+
+    %% Note Orkes
+    note["💡 Airflow mengatur seluruh jadwal eksekusi (Go -> Glue -> dbt)"]
