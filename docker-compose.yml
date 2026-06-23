@@ -301,6 +301,14 @@ services:
         echo "Files in shared volumes:"
         echo
         ls -la /opt/airflow/{logs,dags,plugins,config}
+        echo
+        echo "Registering Airflow connections..."
+        echo
+        /entrypoint airflow connections add 'aws_default' \
+          --conn-type 'aws' \
+          --conn-login "${AWS_ACCESS_KEY_ID}" \
+          --conn-password "${AWS_SECRET_ACCESS_KEY}" \
+          --conn-extra '{"region_name": "ap-southeast-1"}' || echo "Connection aws_default already exists, skipping."
 
     # yamllint enable rule:line-length
     environment:

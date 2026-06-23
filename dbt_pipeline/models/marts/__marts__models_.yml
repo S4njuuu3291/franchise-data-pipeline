@@ -12,7 +12,7 @@ models:
       - name: order_id
         description: "Foreign key ke orders"
       - name: menu_id
-        description: "Foreign key ke dim_menu"
+        description: "Foreign key ke dim_menu (INT vs VARCHAR — skip relationships test)"
       - name: quantity
         description: "Jumlah item dipesan"
       - name: price_per_item
@@ -20,7 +20,7 @@ models:
       - name: subtotal
         description: "Subtotal (quantity * price_per_item)"
       - name: outlet_id
-        description: "Foreign key ke dim_outlet"
+        description: "Foreign key ke dim_outlet (INT vs VARCHAR — skip relationships test)"
       - name: cashier_id
         description: "ID kasir"
       - name: total_amount
@@ -29,6 +29,10 @@ models:
         description: "Metode pembayaran"
       - name: order_date
         description: "Foreign key ke dim_date"
+        tests:
+          - relationships:
+              to: ref('dim_date')
+              field: date
       - name: created_at
         description: "Timestamp order dibuat"
       - name: year
@@ -42,9 +46,8 @@ models:
     description: "Dimension menu — SCD Type 2 dari snp_menu_master dengan enrichment (category_group, price_segment, promo_status)"
     columns:
       - name: menu_id
-        description: "Primary key menu"
+        description: "Primary key menu — SCD Type 2, tidak unique sendiri"
         tests:
-          - unique
           - not_null
       - name: menu_name
         description: "Nama menu/produk"
@@ -106,9 +109,8 @@ models:
     description: "Dimension outlet — SCD Type 2 dari snp_outlet_master dengan enrichment region_label"
     columns:
       - name: outlet_id
-        description: "Primary key outlet"
+        description: "Primary key outlet — SCD Type 2, tidak unique sendiri"
         tests:
-          - unique
           - not_null
       - name: outlet_name
         description: "Nama outlet/cabang"
