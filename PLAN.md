@@ -46,10 +46,7 @@ Status: ✅ Done
 - Test Glue transformation script locally ✅ Done
 - Setup Terraform for AWS Glue, upload and test ✅ Done
 - Create DAG task for silver ✅ Done
+- Create dbt documentation for data models and lineage ✅ Done
+- Create DAG task for dbt transformations ✅ Done
 
-
-<!-- - Create dbt documentation for data models and lineage -->
-<!-- - Dockerized the dbt project for Airflow integration -->
-<!-- - Prepare dbt commands for Airflow integration -->
-<!-- - Implement monitoring and alerting for DAG failures -->
-Status: Ongoing
+Status: ✅ Done
