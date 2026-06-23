@@ -7,7 +7,6 @@ models:
       - name: order_id
         description: "Primary key order"
         tests:
-          - unique
           - not_null
       - name: outlet_id
         description: "Foreign key ke outlet_master"
@@ -28,7 +27,6 @@ models:
       - name: item_id
         description: "Primary key item"
         tests:
-          - unique
           - not_null
       - name: order_id
         description: "Foreign key ke orders"

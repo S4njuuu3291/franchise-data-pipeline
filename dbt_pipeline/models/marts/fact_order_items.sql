@@ -1,7 +1,9 @@
 {{ config(
-    materialized='table',
+    materialized='incremental',
     format='parquet',
-    partitioned_by=['year', 'month', 'day']
+    partitioned_by=['year', 'month', 'day'],
+    incremental_strategy='insert_overwrite',
+    unique_key=['item_id']
 ) }}
 
 WITH fact AS (
@@ -23,7 +25,12 @@ WITH fact AS (
         oi.day
     FROM {{ ref('stg_orders') }} o
     JOIN {{ ref('stg_order_items') }} oi ON o.order_id = oi.order_id
-    WHERE o.data_quality_status = 'passed'
+    WHERE o.data_quality_status = 'valid'
+    {% if is_incremental() %}
+        AND oi.year  = '{{ var("execution_date", "2026")[:4] }}'
+        AND oi.month = '{{ var("execution_date", "06")[5:7] }}'
+        AND oi.day   = '{{ var("execution_date", "23")[8:10] }}'
+    {% endif %}
 )
 
 SELECT * FROM fact

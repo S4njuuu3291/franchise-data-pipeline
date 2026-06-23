@@ -4,8 +4,16 @@ sources:
   - name: silver_data
     database: awsdatacatalog
     schema: franchise_pipeline_dev_athena_db
+    freshness:
+      warn_after: {count: 24, period: hour}
+      error_after: {count: 48, period: hour}
+    loaded_at_field: updated_at
     tables:
       - name: menu_master
+        freshness: null
       - name: outlet_master
+        freshness: null
       - name: orders
+        loaded_at_field: created_at
       - name: order_items
+        freshness: null

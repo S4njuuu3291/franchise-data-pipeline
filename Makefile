@@ -52,7 +52,41 @@ drop-schema:
 		"DROP TABLE IF EXISTS order_items, orders, menu_master, outlet_master CASCADE;"
 	@echo "All tables dropped."
 
+# ---------------------------------------------------------------------------
+# Variabel untuk Athena & Glue
+# ---------------------------------------------------------------------------
+ATHENA_DATABASE = franchise_pipeline_dev_athena_db
+DATA_LAKE_GOLD_BUCKET = franchise-pipeline-dev-data-lake-gold
+SILVER_BUCKET = franchise-pipeline-dev-data-lake-silver
+
+# Daftar semua objek dbt di Athena (views & tables)
+DBT_VIEWS = stg_orders stg_order_items
+DBT_TABLES = dim_date dim_menu dim_outlet fact_order_items snp_menu_master snp_outlet_master
+# ---------------------------------------------------------------------------
+
 TF_DEV_DIR = infrastructure/environments/dev
+
+# ---------------------------------------------------------------------------
+# athena-truncate-dbt — Hapus semua tabel/view hasil dbt di Athena + data S3
+# ---------------------------------------------------------------------------
+.PHONY: athena-truncate-dbt
+athena-truncate-dbt:
+	@echo "🗑️  Dropping dbt views from Athena ($(ATHENA_DATABASE)) ..."
+	@for view in $(DBT_VIEWS); do \
+		echo "   → Dropping view $$view ..."; \
+		aws glue delete-table --database-name "$(ATHENA_DATABASE)" --name "$$view" 2>/dev/null && echo "     ✅ Dropped" || echo "     ⏭️  Not found"; \
+	done
+	@echo ""
+	@echo "🗑️  Dropping dbt tables from Athena ($(ATHENA_DATABASE)) ..."
+	@for table in $(DBT_TABLES); do \
+		echo "   → Dropping table $$table ..."; \
+		aws glue delete-table --database-name "$(ATHENA_DATABASE)" --name "$$table" 2>/dev/null && echo "     ✅ Dropped" || echo "     ⏭️  Not found"; \
+	done
+	@echo ""
+	@echo "🧹 Cleaning S3 gold layer (dbt output) ..."
+	aws s3 rm "s3://$(DATA_LAKE_GOLD_BUCKET)/" --recursive 2>/dev/null && echo "   ✅ Gold layer cleaned" || echo "   ⏭️  Empty or not found"
+	@echo ""
+	@echo "✅ All dbt objects in Athena have been removed."
 
 # ---------------------------------------------------------------------------
 # seed-db — Seed data master (outlet & menu) ke database

@@ -5,9 +5,8 @@ snapshots:
     description: "Snapshot SCD Type 2 — melacak perubahan harga & kategori menu"
     columns:
       - name: menu_id
-        description: "Primary key menu (cast ke VARCHAR untuk dbt)"
+        description: "Primary key menu (cast ke VARCHAR untuk dbt) — SCD Type 2, tidak unique sendiri"
         tests:
-          - unique
           - not_null
       - name: menu_name
         description: "Nama menu/produk"
@@ -40,9 +39,8 @@ snapshots:
     description: "Snapshot SCD Type 2 — melacak perubahan data outlet"
     columns:
       - name: outlet_id
-        description: "Primary key outlet (cast ke VARCHAR untuk dbt)"
+        description: "Primary key outlet (cast ke VARCHAR untuk dbt) — SCD Type 2, tidak unique sendiri"
         tests:
-          - unique
           - not_null
       - name: outlet_name
         description: "Nama outlet/cabang"

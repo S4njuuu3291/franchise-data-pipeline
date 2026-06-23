@@ -71,4 +71,25 @@ CREATE TABLE IF NOT EXISTS order_items (
         REFERENCES menu_master (menu_id)
 );
 
+-- ---------------------------------------------------------------------------
+-- TRIGGER: Auto-update updated_at untuk tabel master
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_menu_master_updated_at
+    BEFORE UPDATE ON menu_master
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER trg_outlet_master_updated_at
+    BEFORE UPDATE ON outlet_master
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 
