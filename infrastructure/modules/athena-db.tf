@@ -144,13 +144,14 @@ resource "aws_glue_catalog_table" "orders" {
     classification = "parquet"
     "projection.enabled"           = "true"
     "projection.year.type"         = "integer"
-    "projection.year.range"        = "2020,2100"
+    "projection.year.range"        = "2026,2027"
     "projection.month.type"        = "integer"
     "projection.month.range"       = "1,12"
     "projection.month.digits"      = "2"
     "projection.day.type"          = "integer"
     "projection.day.range"         = "1,31"
     "projection.day.digits"        = "2"
+    "partition_filtering.enabled"  = "true"
   }
 
   storage_descriptor {
@@ -219,13 +220,14 @@ resource "aws_glue_catalog_table" "order_items" {
     classification = "parquet"
     "projection.enabled"           = "true"
     "projection.year.type"         = "integer"
-    "projection.year.range"        = "2020,2100"
+    "projection.year.range"        = "2026,2027"
     "projection.month.type"        = "integer"
     "projection.month.range"       = "1,12"
     "projection.month.digits"      = "2"
     "projection.day.type"          = "integer"
     "projection.day.range"         = "1,31"
     "projection.day.digits"        = "2"
+    "partition_filtering.enabled"  = "true"
   }
 
   storage_descriptor {

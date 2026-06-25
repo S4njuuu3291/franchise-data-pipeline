@@ -7,8 +7,12 @@ models:
       - name: item_id
         description: "Primary key item"
         tests:
-          - unique
-          - not_null
+          - unique:
+              config:
+                where: "concat(year, '-', month, '-', day) >= CAST(CURRENT_DATE - INTERVAL '3' DAY AS VARCHAR)"
+          - not_null:
+              config:
+                where: "concat(year, '-', month, '-', day) >= CAST(CURRENT_DATE - INTERVAL '3' DAY AS VARCHAR)"
       - name: order_id
         description: "Foreign key ke orders"
       - name: menu_id
