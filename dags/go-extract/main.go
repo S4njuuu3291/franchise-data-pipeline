@@ -167,7 +167,12 @@ func main() {
 
 	dbHost := getEnv("PG_HOST", "localhost")
 	dbPort := getEnv("PG_PORT", "5432")
-	connStr := fmt.Sprintf("postgres://replicator_user:supersecretpassword@%s:%s/main_db?sslmode=disable", dbHost, dbPort)
+	dbUser := getEnv("PG_USER", "replicator_user")
+	dbPass := getEnv("PG_PASSWORD", "supersecretpassword")
+	dbName := getEnv("PG_DATABASE", "main_db")
+	dbSSLMode := getEnv("PG_SSLMODE", "disable")
+	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		dbUser, dbPass, dbHost, dbPort, dbName, dbSSLMode)
 	pool := newPool(ctx, connStr)
 	defer pool.Close()
 
