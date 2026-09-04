@@ -20,6 +20,7 @@
 ![AWS Athena](https://img.shields.io/badge/AWS_Athena-FF9900?logo=amazonathena&logoColor=white)
 ![AWS S3](https://img.shields.io/badge/AWS_S3-569A31?logo=amazons3&logoColor=white)
 ![AWS Glue Catalog](https://img.shields.io/badge/Glue_Catalog-232F3E?logo=amazonaws&logoColor=white)
+![Great Expectations](https://img.shields.io/badge/Great_Expectations-Data_Quality-2E7D32)
 
 ---
 
@@ -46,6 +47,7 @@ The pipeline flows data through four layers:
 | **Extraction** | Go 1.21 | Custom binary reads replica and writes CSV to Bronze S3 |
 | **Orchestration** | Apache Airflow 3.0 | Schedules and orchestrates the daily pipeline DAG |
 | **Transformation** | AWS Glue (PySpark 3.5) | Bronze to Silver: data cleansing, validation, quarantine logic |
+| **Data Quality** | Great Expectations | Quality gate for Bronze data before Glue transformation |
 | **Analytics Modeling** | dbt 1.11 (Cosmos) | Silver to Gold: staging, SCD Type 2 snapshots, dimensional marts |
 | **Query Engine** | AWS Athena | Serverless SQL queries on Gold layer tables |
 | **Infrastructure** | Terraform 1.11 | Provisions all AWS resources (S3, Glue, Athena, IAM) |
@@ -132,6 +134,22 @@ The Glue transformation applies multiple validation rules:
 
 All data is still written to Silver layer with `data_quality_status` column for traceability. Bad records are also copied to the quarantine bucket for investigation.
 
+### Bronze Quality Gate (Great Expectations)
+
+Great Expectations (GX) runs after the Go extraction task and before the Glue transformation task in the Airflow DAG. It validates the extracted Bronze data for:
+
+- `menu_master` and `outlet_master`: schema and required-column completeness;
+- `orders`: schema, completeness, unique `order_id`, minimum row count, and valid payment methods;
+- `order_items`: schema, completeness, unique `item_id`, positive quantity, and non-negative amounts.
+
+The GX configuration, expectation suites, validation definitions, checkpoints, and Data Docs setup are located in [`dags/quality_gate_gx/`](dags/quality_gate_gx/). The transaction quality gate accepts the target date as an argument:
+
+```bash
+python setup.py --date YYYY-MM-DD
+```
+
+The master and transaction validations use separate checkpoints. The transaction checkpoint combines the `orders` and `order_items` validation definitions and runs before the pipeline continues to Glue.
+
 ### dbt Tests
 
 | Test Type | Count | Models |
@@ -210,6 +228,7 @@ docker compose exec airflow-worker bash -c \
 |   |-- dbt_sales_dag.py           # Airflow DAG definition
 |   |-- go-extract/                # Go CSV extractor
 |   |-- spark-transform/           # PySpark transform scripts
+|   |-- quality_gate_gx/            # Great Expectations quality gate
 |-- dbt_pipeline/                  # dbt project
 |   |-- models/
 |   |   |-- staging/               # Staging views
