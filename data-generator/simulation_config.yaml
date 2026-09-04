@@ -4,8 +4,8 @@
 # Ubah nilai di bawah ini untuk mengontrol rentang tanggal & volume simulasi.
 
 simulation:
-  start_date: "2026-05-01"    # Tanggal mulai simulasi (YYYY-MM-DD)
-  end_date: "2026-06-21"      # Tanggal akhir simulasi (YYYY-MM-DD)
+  start_date: "2026-09-04"    # Tanggal mulai simulasi (YYYY-MM-DD)
+  end_date: "2026-09-10"      # Tanggal akhir simulasi (YYYY-MM-DD)
 
   # Kontrol volume transaksi — scale 1.0 = 100% (volume original)
   # Rekomendasi: 0.3 (30%) untuk keseimbangan antara kecepatan & data realistis
@@ -13,6 +13,6 @@ simulation:
 
   # Range transaksi per outlet berdasarkan Tier (sebelum kena multiplier weekend/skew)
   tx_ranges_per_outlet:
-    tier_1: [250, 400]    # [min, max] — Outlet besar kota utama
-    tier_2: [150, 250]    # Outlet menengah kota satelit
-    tier_3: [70, 150]     # Outlet kecil rural
+    tier_1: [1500, 4000]    # [min, max] — Outlet besar kota utama
+    tier_2: [1000, 2500]    # Outlet menengah kota satelit
+    tier_3: [230, 1500]     # Outlet kecil rural

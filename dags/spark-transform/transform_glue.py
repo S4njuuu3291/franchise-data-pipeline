@@ -189,12 +189,11 @@ def bronze_to_silver(spark, date, outlet_df, menu_df):
         .mode("overwrite") \
         .parquet(f"{SILVER_BUCKET}/order_items/{partition}/")
 
-    # ── Quarantine Write (jika ada data tidak valid) ───────────────────────────────
-    if discrepancy_count > 0:
-        discrepancies.write \
-            .mode("overwrite") \
-            .parquet(f"{QUARANTINE_BUCKET}/orders_discrepancies/{partition}/")
-        log.info(f"📤 Discrepancies orders → {QUARANTINE_BUCKET}/orders_discrepancies/{partition}/")
+    # ── Quarantine Write ───────────────────────────────
+    discrepancies.write \
+        .mode("overwrite") \
+        .parquet(f"{QUARANTINE_BUCKET}/orders_discrepancies/{partition}/")
+    log.info(f"📤 Discrepancies orders → {QUARANTINE_BUCKET}/orders_discrepancies/{partition}/")
 
 def date_range(start_str, end_str):
     """Yield dates from start to end inclusive."""

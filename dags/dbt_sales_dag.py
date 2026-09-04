@@ -23,7 +23,7 @@ default_args = {
     "owner": "data_engineer",
     "depends_on_past": False,
     "retries": 1,
-    "retry_delay": timedelta(minutes=5),
+    "retry_delay": timedelta(minutes=1),
 }
 
 with DAG(
@@ -33,15 +33,16 @@ with DAG(
     schedule="@daily",
     start_date=datetime(2025, 1, 1),
     catchup=False,
-    tags=["nyc-taxi", "etl"],
+    tags=["etl"],
 ) as dag:
-    date = "{{ ds }}"
+# Sintaks yang PALING BENAR dan AMAN:
+    date = "{{ dag_run.conf.get('execution_date', ds) }}"
 
     start_pipeline = EmptyOperator(task_id="start_pipeline")
 
     extract_task = BashOperator(
         task_id="extract_data",
-        bash_command='cd /opt/airflow/dags/go-extract && go run main.go -date "{{ ds }}"',
+        bash_command='cd /opt/airflow/dags/go-extract && go run main.go -date "{{ dag_run.conf.get(\'execution_date\', ds) }}"',
     )
 
     transform_task = GlueJobOperator(
@@ -60,9 +61,6 @@ with DAG(
         project_config=ProjectConfig(
             manifest_path=Path("/opt/airflow/dbt_pipeline/target/manifest.json"), # Cosmos membaca manifest
             project_name="dbt_pipeline",
-            dbt_vars={
-                "execution_date": "{{ ds }}",
-            },
         ),
         profile_config=ProfileConfig(
             profile_name="franchise_athena_profile",
@@ -72,7 +70,11 @@ with DAG(
                 profile_args={
                     "database": "awsdatacatalog",
                     "schema": "franchise_pipeline_dev_athena_db",
+                    # Query results sementara Athena tetap dipisahkan dari data Gold.
                     "s3_staging_dir": "s3://franchise-pipeline-dev-athena-query-results/",
+                    # Lokasi permanen tabel/model dbt Gold.
+                    "s3_data_dir": "s3://franchise-pipeline-dev-data-lake-gold/",
+                    "s3_data_naming": "schema_table",
                 },
             ),
         ),
@@ -80,6 +82,11 @@ with DAG(
             dbt_project_path=DBT_PROJECT_DIR,
             execution_mode=ExecutionMode.LOCAL,
         ),
+        # Teruskan tanggal Airflow ke dbt saat task dieksekusi.
+        # ProjectConfig.dbt_vars hanya dipakai saat parsing project pada setup ini.
+        operator_args={
+            "vars": {"execution_date": "{{ dag_run.conf.get('execution_date', '2026-05-01') }}"},
+        },
     )
 
     end_pipeline = EmptyOperator(task_id="end_pipeline")
