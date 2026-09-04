@@ -30,6 +30,7 @@ x-airflow-common:
     AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
     AWS_DEFAULT_REGION: "ap-southeast-1"
     AIRFLOW_CONN_AWS_DEFAULT: 'aws://${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}@/?region_name=ap-southeast-1'
+    CONNECTION_CHECK_MAX_COUNT: "0"
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
@@ -58,20 +59,26 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        # Mulai PostgreSQL melalui docker-entrypoint.sh (mode synchronous replication)
-        docker-entrypoint.sh postgres \
-          -c wal_level=replica \
-          -c max_wal_senders=10 \
-          -c max_replication_slots=10 &
-          
-        # Tunggu hingga PostgreSQL siap
-        until pg_isready -U replicator_user; do sleep 1; done
+        # 1. Bersihkan folder data terlebih dahulu agar initdb bawaan Postgres tidak protes
+        if [ ! -s /var/lib/postgresql/data/PG_VERSION ]; then
+          echo "Cleaning up directory for fresh initdb..."
+          rm -rf /var/lib/postgresql/data/* /var/lib/postgresql/data/.[!.]*
+        fi
+
+        # 2. Jalankan inisialisasi Postgres asli di latar belakang secara singkat
+        docker-entrypoint.sh postgres &
         
-        # Tambahkan entri pg_hba.conf untuk koneksi replikasi
+        # 3. Tunggu sampai folder data terisi oleh initdb asli
+        until [ -s /var/lib/postgresql/data/pg_hba.conf ]; do sleep 0.2; done
+        
+        # 4. Timpa pg_hba.conf dengan hak akses replikasi Anda
         echo "host replication replicator_user 0.0.0.0/0 trust" >> /var/lib/postgresql/data/pg_hba.conf
+        
+        # 5. Berikan sinyal reload agar Postgres membaca pg_hba.conf yang baru
+        until pg_isready -U replicator_user; do sleep 0.2; done
         psql -U replicator_user -d postgres -c "SELECT pg_reload_conf();"
         
-        echo "Primary is ready for replication connections."
+        echo "🚀 Primary with replication permissions is ready!"
         wait
     volumes:
       - primary_data:/var/lib/postgresql/data
@@ -79,25 +86,24 @@ services:
   postgres-replica:
     image: postgres:15-alpine
     environment:
-      # Kita gunakan pg_basebackup untuk kloning data awal dari Primary
       PGPASSWORD: supersecretpassword
     ports:
       - "5432:5432"
     depends_on:
       - postgres-primary
-    # Script otomatis agar Replica mengkloning data Primary saat pertama kali nyala
     entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
         echo "Waiting for primary to be ready..."
-        until pg_isready -h postgres-primary -p 5432 -U replicator_user; do sleep 1; done
+        until pg_isready -h postgres-primary -p 5432 -U replicator_user; do sleep 0.2; done
         
         if [ ! -s /var/lib/postgresql/data/PG_VERSION ]; then
+          echo "Clearing data directory for clean clone..."
+          rm -rf /var/lib/postgresql/data/* /var/lib/postgresql/data/.[!.]*
           echo "Cloning primary database..."
           pg_basebackup -h postgres-primary -D /var/lib/postgresql/data -U replicator_user -v -P -R -X stream
         fi
         
-        # Pastikan kepemilikan dan permission data diubah ke user postgres
         chown -R postgres:postgres /var/lib/postgresql/data
         chmod 0700 /var/lib/postgresql/data
         
@@ -116,9 +122,9 @@ services:
       - postgres-db-volume:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
-      interval: 10s
+      interval: 3s
       retries: 5
-      start_period: 5s
+      start_period: 2s
     restart: always
 
   redis:
@@ -129,10 +135,10 @@ services:
       - 6379
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 30s
-      retries: 50
-      start_period: 30s
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 2s
     restart: always
 
   airflow-apiserver:

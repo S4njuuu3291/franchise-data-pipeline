@@ -46,11 +46,11 @@ PAYMENT_WEIGHTS = [40, 20, 15, 12, 8, 5] # Mayoritas cashless sesuai realitas ur
 
 def get_db_connection():
     return psycopg2.connect(
-        host="localhost",
-        port="5431",
-        user="replicator_user",
-        password="supersecretpassword",
-        database="main_db"
+        host=os.getenv("DB_HOST", "localhost"),
+        port=os.getenv("DB_PORT", "5431"),
+        user=os.getenv("DB_USER", "replicator_user"),
+        password=os.getenv("DB_PASSWORD", "supersecretpassword"),
+        database=os.getenv("DB_NAME", "main_db")
     )
 
 # =========================================================================
