@@ -45,6 +45,15 @@ with DAG(
         bash_command='cd /opt/airflow/dags/go-extract && go run main.go -date "{{ dag_run.conf.get(\'execution_date\', ds) }}"',
     )
 
+    quality_gate_task = BashOperator(
+        task_id="quality_gate_raw_data",
+        bash_command=(
+            "cd /opt/airflow/dags/quality_gate_gx && "
+            "python setup.py --date "
+            '"{{ dag_run.conf.get(\'execution_date\', ds) }}"'
+        ),
+    )
+
     transform_task = GlueJobOperator(
         task_id="bronze_to_silver",
         job_name=GLUE_JOB_NAME,
@@ -92,4 +101,4 @@ with DAG(
     end_pipeline = EmptyOperator(task_id="end_pipeline")
 
     # hello_task >> start_pipeline >> dbt_transform_gold >> end_pipeline
-    start_pipeline >> extract_task >> transform_task >> dbt_transform_gold >> end_pipeline
+    start_pipeline >> extract_task >> quality_gate_task >> transform_task >> dbt_transform_gold >> end_pipeline

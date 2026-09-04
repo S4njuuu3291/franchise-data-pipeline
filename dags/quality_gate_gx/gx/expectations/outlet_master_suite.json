@@ -1,0 +1,62 @@
+{
+  "expectations": [
+    {
+      "id": "04c5d603-fcf3-4491-b2d2-cd3707e88158",
+      "kwargs": {
+        "column_set": [
+          "outlet_id",
+          "outlet_name",
+          "city",
+          "region_tier",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_columns_to_match_set"
+    },
+    {
+      "id": "26d569b3-5c81-4cd0-b48b-79c149b90d87",
+      "kwargs": {
+        "column": "outlet_id"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "169692c0-1483-49f6-b551-736f7e99c2f8",
+      "kwargs": {
+        "column": "outlet_name"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "04199b1e-df2c-4b4b-82fa-2d1594259a20",
+      "kwargs": {
+        "column": "city"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "1c7c2bdf-7fc3-474b-8c89-8aba68753c76",
+      "kwargs": {
+        "column": "region_tier"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    }
+  ],
+  "id": "4040aaee-b0b3-4c48-9305-a6189e5c3871",
+  "meta": {
+    "great_expectations_version": "1.18.1"
+  },
+  "name": "outlet_master_suite",
+  "notes": null
+}

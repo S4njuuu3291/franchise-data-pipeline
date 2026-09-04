@@ -1,0 +1,136 @@
+{
+  "expectations": [
+    {
+      "id": "0609704b-7593-4bae-b7cc-35f5bea44b6f",
+      "kwargs": {
+        "column_set": [
+          "order_id",
+          "outlet_id",
+          "cashier_id",
+          "total_amount",
+          "payment_method",
+          "created_at"
+        ]
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_table_columns_to_match_set"
+    },
+    {
+      "id": "be4b71d1-673a-4721-ada8-d96d444e69a1",
+      "kwargs": {
+        "column": "order_id"
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "2dea0d55-ead0-424a-82e9-1c96fa9069c6",
+      "kwargs": {
+        "column": "outlet_id"
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "ddc3c405-1b2e-4ab8-b5e0-bf035f03d386",
+      "kwargs": {
+        "column": "cashier_id"
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "fe2f203f-3bdf-448a-9063-b5c9e027cd88",
+      "kwargs": {
+        "column": "total_amount"
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "a1ee3b97-f7b6-4fe8-99dd-9eb3e5e4cad8",
+      "kwargs": {
+        "column": "payment_method"
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "36d1bc31-69dd-4f33-85d2-bb259b226823",
+      "kwargs": {
+        "column": "created_at"
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "cb6c6ab5-96c8-4327-a8a0-bbd93b874686",
+      "kwargs": {
+        "column": "order_id"
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_be_unique"
+    },
+    {
+      "id": "a1589245-6bd9-4620-b877-ada1626ad97b",
+      "kwargs": {
+        "min_value": 1
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_table_row_count_to_be_between"
+    },
+    {
+      "id": "eed92142-8f69-4e67-bd3e-6b258b182080",
+      "kwargs": {
+        "column": "payment_method",
+        "mostly": 0.99,
+        "value_set": [
+          "Cash",
+          "Credit Card",
+          "Debit Card",
+          "GoPay",
+          "OVO",
+          "QRIS"
+        ]
+      },
+      "meta": {
+        "severity": "warning"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_be_in_set"
+    }
+  ],
+  "id": "7d762fc1-b41d-48a1-9cdf-8d4a83e9fbfd",
+  "meta": {
+    "great_expectations_version": "1.18.1"
+  },
+  "name": "orders_suite",
+  "notes": null
+}

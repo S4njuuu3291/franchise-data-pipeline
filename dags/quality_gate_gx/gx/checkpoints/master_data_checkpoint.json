@@ -1,0 +1,18 @@
+{
+  "actions": [],
+  "id": "cb3fde9c-3efc-4f9c-b9c1-9c2ba6ceac58",
+  "name": "master_data_checkpoint",
+  "result_format": {
+    "result_format": "SUMMARY"
+  },
+  "validation_definitions": [
+    {
+      "id": "150031a4-9913-4431-a708-6f2123c1a898",
+      "name": "menu_master_validation"
+    },
+    {
+      "id": "ecfd49bb-8e91-44bd-8d52-a14ca68db90c",
+      "name": "outlet_master_validation"
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "expectations": [
+    {
+      "id": "94e98714-886e-42e6-bbbf-35a5e15c2619",
+      "kwargs": {
+        "column_set": [
+          "menu_id",
+          "menu_name",
+          "category",
+          "base_price",
+          "price_tier_1",
+          "price_tier_2",
+          "price_tier_3",
+          "is_promo_active",
+          "updated_at"
+        ]
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_columns_to_match_set"
+    },
+    {
+      "id": "f2741d04-b1b1-423d-a3be-12fe1d26546e",
+      "kwargs": {
+        "column": "menu_id"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "d6838508-ac91-4cfc-a7e4-77bab3de1f08",
+      "kwargs": {
+        "column": "menu_name"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "4bafcd7d-6a9e-4de0-bac2-8f42c5473da0",
+      "kwargs": {
+        "column": "category"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    }
+  ],
+  "id": "9bf27ba0-207f-4775-9938-97f79d2a3f36",
+  "meta": {
+    "great_expectations_version": "1.18.1"
+  },
+  "name": "menu_master_suite",
+  "notes": null
+}
