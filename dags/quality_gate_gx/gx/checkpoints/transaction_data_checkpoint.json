@@ -1,0 +1,18 @@
+{
+  "actions": [],
+  "id": "0a009b31-cb03-4d44-9d40-0511f0dd1421",
+  "name": "transaction_data_checkpoint",
+  "result_format": {
+    "result_format": "SUMMARY"
+  },
+  "validation_definitions": [
+    {
+      "id": "65336729-d805-48ce-90eb-f0ca4032c84b",
+      "name": "orders_validation"
+    },
+    {
+      "id": "fa85dd5d-1405-4497-9986-40fe1c1593f6",
+      "name": "order_items_validation"
+    }
+  ]
+}
