@@ -1,0 +1,63 @@
+{
+  "expectations": [
+    {
+      "id": "b914ab69-0b58-4e7e-a906-9b4eb6da6d6a",
+      "kwargs": {
+        "column_set": [
+          "order_id",
+          "outlet_id",
+          "cashier_id",
+          "total_amount",
+          "payment_method",
+          "created_at",
+          "data_quality_status"
+        ]
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_columns_to_match_set"
+    },
+    {
+      "id": "9681542e-f568-4bd4-b940-2d8c582fcf56",
+      "kwargs": {
+        "min_value": 1
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_row_count_to_be_between"
+    },
+    {
+      "id": "4d8e08c4-69b3-490b-bb1d-4227fd98cc38",
+      "kwargs": {
+        "column": "order_id"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "b172ec3a-f795-4315-bc11-3db90e0c97cf",
+      "kwargs": {
+        "column": "outlet_id"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "b7c31881-9df9-42cb-a7c8-23d11ba0a802",
+      "kwargs": {
+        "column": "created_at"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    }
+  ],
+  "id": "f5c54951-dbf7-4345-b2b6-c788e7198435",
+  "meta": {
+    "great_expectations_version": "1.18.1"
+  },
+  "name": "silver_orders_suite",
+  "notes": null
+}
