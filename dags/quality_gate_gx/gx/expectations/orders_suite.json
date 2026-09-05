@@ -1,7 +1,7 @@
 {
   "expectations": [
     {
-      "id": "0609704b-7593-4bae-b7cc-35f5bea44b6f",
+      "id": "38159820-5b92-49f4-951d-e04c0fed5882",
       "kwargs": {
         "column_set": [
           "order_id",
@@ -19,7 +19,7 @@
       "type": "expect_table_columns_to_match_set"
     },
     {
-      "id": "be4b71d1-673a-4721-ada8-d96d444e69a1",
+      "id": "2aa0e2c5-2dc5-4173-a91c-25159405e8c1",
       "kwargs": {
         "column": "order_id"
       },
@@ -30,7 +30,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "2dea0d55-ead0-424a-82e9-1c96fa9069c6",
+      "id": "989336ad-900c-47c3-a490-9941bf6fa6a8",
       "kwargs": {
         "column": "outlet_id"
       },
@@ -41,7 +41,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "ddc3c405-1b2e-4ab8-b5e0-bf035f03d386",
+      "id": "25050ee2-c420-4509-97bc-4710c0118be9",
       "kwargs": {
         "column": "cashier_id"
       },
@@ -52,7 +52,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "fe2f203f-3bdf-448a-9063-b5c9e027cd88",
+      "id": "aea9c963-5c98-46ec-b982-cbb899f63c73",
       "kwargs": {
         "column": "total_amount"
       },
@@ -63,7 +63,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "a1ee3b97-f7b6-4fe8-99dd-9eb3e5e4cad8",
+      "id": "af70edde-95d8-4919-adba-c089560df833",
       "kwargs": {
         "column": "payment_method"
       },
@@ -74,7 +74,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "36d1bc31-69dd-4f33-85d2-bb259b226823",
+      "id": "0e72f703-9843-4027-ad47-4ce0b5365e59",
       "kwargs": {
         "column": "created_at"
       },
@@ -85,7 +85,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "cb6c6ab5-96c8-4327-a8a0-bbd93b874686",
+      "id": "9d2dc230-d4df-44a3-aaaa-d3771e11d372",
       "kwargs": {
         "column": "order_id"
       },
@@ -96,7 +96,7 @@
       "type": "expect_column_values_to_be_unique"
     },
     {
-      "id": "a1589245-6bd9-4620-b877-ada1626ad97b",
+      "id": "1b26d9ce-45ad-459c-a157-5c64f9279453",
       "kwargs": {
         "min_value": 1
       },
@@ -107,10 +107,9 @@
       "type": "expect_table_row_count_to_be_between"
     },
     {
-      "id": "eed92142-8f69-4e67-bd3e-6b258b182080",
+      "id": "ed6426c5-a723-405b-844e-a53529a898b0",
       "kwargs": {
         "column": "payment_method",
-        "mostly": 0.99,
         "value_set": [
           "Cash",
           "Credit Card",

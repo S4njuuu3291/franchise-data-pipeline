@@ -1,11 +1,11 @@
 {
   "data": {
     "asset": {
-      "id": "b95e4337-7d4d-4690-96e6-a434b61f7da7",
+      "id": "42859386-997c-4545-9c03-83d3039ba71e",
       "name": "outlet_master_asset"
     },
     "batch_definition": {
-      "id": "db128279-46d4-47aa-a77e-739530544982",
+      "id": "bc6d3629-61b8-4d0f-b6c9-0ee07fdb9bd1",
       "name": "daily_outlet_definition"
     },
     "datasource": {
