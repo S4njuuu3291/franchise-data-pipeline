@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "id": "50492019-f0c6-47d9-90d3-c333e4286311",
+      "kwargs": {
+        "column_set": [
+          "outlet_id",
+          "outlet_name",
+          "city",
+          "region_tier",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_columns_to_match_set"
+    },
+    {
+      "id": "ca49b899-0783-4955-b940-62bedff797eb",
+      "kwargs": {
+        "min_value": 1
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_row_count_to_be_between"
+    },
+    {
+      "id": "cbad7fda-383e-4a5e-a509-aa2a5a5ffb94",
+      "kwargs": {
+        "column": "outlet_id"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    }
+  ],
+  "id": "a6993eba-15e0-4841-8c5d-80fa60058b8e",
+  "meta": {
+    "great_expectations_version": "1.18.1"
+  },
+  "name": "silver_outlet_master_suite",
+  "notes": null
+}

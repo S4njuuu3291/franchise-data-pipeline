@@ -1,0 +1,22 @@
+{
+  "data": {
+    "asset": {
+      "id": "56e2c4e0-6546-4956-a087-00d25edd3099",
+      "name": "outlet_silver_master_asset"
+    },
+    "batch_definition": {
+      "id": "f2ef18b4-b6f9-4369-8938-b44af60cf955",
+      "name": "daily_outlet_silver_definition"
+    },
+    "datasource": {
+      "id": "bd5b2881-a78b-4a3c-bd9b-0569a869daee",
+      "name": "silver_spark_data"
+    }
+  },
+  "id": "e680ecc8-cb10-4ba4-8815-388752f4d8b7",
+  "name": "silver_outlet_master_validation",
+  "suite": {
+    "id": "a6993eba-15e0-4841-8c5d-80fa60058b8e",
+    "name": "silver_outlet_master_suite"
+  }
+}

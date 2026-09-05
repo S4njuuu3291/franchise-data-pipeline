@@ -1,0 +1,22 @@
+{
+  "data": {
+    "asset": {
+      "id": "6d13aa15-6652-46c8-92fa-c2810d487078",
+      "name": "outlet_silver_asset"
+    },
+    "batch_definition": {
+      "id": "f32130a1-ef5b-4124-80a7-5ce6c91c5467",
+      "name": "outlet_def"
+    },
+    "datasource": {
+      "id": "039e3fa9-102c-4ec3-9f1f-db661f66282f",
+      "name": "silver_in_memory_data"
+    }
+  },
+  "id": "8c85f5c6-3d57-436a-954b-266cba4a82bd",
+  "name": "silver_outlet_master_runtime_validation",
+  "suite": {
+    "id": "a6993eba-15e0-4841-8c5d-80fa60058b8e",
+    "name": "silver_outlet_master_suite"
+  }
+}

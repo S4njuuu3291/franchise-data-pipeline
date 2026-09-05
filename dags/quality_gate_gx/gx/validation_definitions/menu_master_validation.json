@@ -1,11 +1,11 @@
 {
   "data": {
     "asset": {
-      "id": "d9f6d791-a2f4-4b27-b79b-b4f1b24daa30",
+      "id": "2affa1d0-f684-4391-9fb3-e2f8ee77f03c",
       "name": "menu_master_asset"
     },
     "batch_definition": {
-      "id": "b28c15e0-89ad-4250-aba8-036da1151c5b",
+      "id": "1f444486-c142-4ca2-bd4d-bbd4cf2ad1db",
       "name": "daily_menu_definition"
     },
     "datasource": {

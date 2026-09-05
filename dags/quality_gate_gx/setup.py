@@ -9,7 +9,6 @@ import yaml
 import logging
 from datetime import datetime
 
-from great_expectations.exceptions.exceptions import NoAvailableBatchesError
 
 logger = logging.getLogger(__name__)
 
@@ -73,18 +72,12 @@ menu_batch_definition = menu_master_asset.add_batch_definition_path(
     path=r".*\.csv"  # Tulis regex nama file Anda di sini
 )
 
-menu_batch = menu_batch_definition.get_batch()
-
 outlet_batch_definition = outlet_master_asset.add_batch_definition_path(
     name="daily_outlet_definition",
     path=r".*\.csv"  # Tulis regex nama file Anda di sini
 )
 
-outlet_batch = outlet_batch_definition.get_batch()
-
-logger.debug("Menu master batch preview:\n%s", menu_batch.data.dataframe.head())
-logger.debug("Outlet master batch preview:\n%s", outlet_batch.data.dataframe.head())
-logger.info("Master batches loaded: menu_master and outlet_master")
+logger.info("Master batch definitions configured")
 
 # Suite for menu_master
 menu_suite_name = "menu_master_suite"
@@ -197,24 +190,6 @@ if site_name not in context.get_site_names():
 else:
     logger.info("Data Docs site already exists: %s", site_name)
 
-context.build_data_docs(site_names=site_name)
-logger.info("Data Docs site built: %s", site_name)
-
-# Run the checkpoint to validate the master data
-
-try:
-    checkpoint_result = checkpoint.run()
-    if checkpoint_result:
-        logger.info("Master data validation passed.")
-    else:
-        logger.error("Master data validation failed. See Data Docs for details.")
-except NoAvailableBatchesError:
-    raise SystemExit(
-        f"CRITICAL: expected batch missing for validation. Please check the S3 bucket '{bucket_name}' for the required master data files."
-    )
-
-context.build_data_docs(site_names=site_name)
-
 # =========================================================
 
 orders = "orders_asset"
@@ -236,15 +211,11 @@ orders_batch_definition = orders_asset.add_batch_definition_path(
     path=r"orders.csv"  # Tulis regex nama file Anda di sini
 )
 
-orders_batch = orders_batch_definition.get_batch()
-
 order_items_batch_definition = order_items_asset.add_batch_definition_path(
     name="daily_order_items_definition",
     # prefix example = order_items/year=2025/month=01/day=01/order_items.csv
     path=r"order_items.csv"  # Tulis regex nama file Anda di sini
 )
-
-order_items_batch = order_items_batch_definition.get_batch()
 
 # Suite for orders
 orders_suite_name = "orders_suite"
@@ -297,7 +268,7 @@ orders_suite.add_expectation(
     gx.expectations.ExpectColumnValuesToBeInSet(
         column="payment_method",
         value_set=["Cash", "Credit Card", "Debit Card", "GoPay", "OVO", "QRIS"],
-        mostly=0.99,
+        mostly=1.0,
         meta={"severity": "warning"},
     )
 )
@@ -391,18 +362,3 @@ transaction_checkpoint = gx.Checkpoint(
 )
 context.checkpoints.add_or_update(transaction_checkpoint)
 logger.info("Checkpoint configured: %s", transaction_checkpoint.name)
-
-try:
-    transaction_checkpoint_result = transaction_checkpoint.run()
-    if transaction_checkpoint_result:
-        logger.info("Transaction data validation passed.")
-    else:
-        logger.error("Transaction data validation failed. See Data Docs for details.")
-except NoAvailableBatchesError:
-    raise SystemExit(
-        f"CRITICAL: expected transaction batch missing for date {args.date}. "
-        f"Please check the S3 bucket '{bucket_name}'."
-    )
-
-context.build_data_docs(site_names=site_name)
-logger.info("Transaction validation Data Docs rebuilt: %s", site_name)

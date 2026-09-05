@@ -1,7 +1,7 @@
 {
   "expectations": [
     {
-      "id": "9ed56b52-74c3-46f6-8c8a-bd238a29fafc",
+      "id": "8408aff9-2966-47b3-a307-4bde67f1af46",
       "kwargs": {
         "column_set": [
           "menu_id",
@@ -20,37 +20,28 @@
       "type": "expect_table_columns_to_match_set"
     },
     {
-      "id": "d36cd72a-a1f5-4e0e-a362-735a4b4dbc62",
+      "id": "9f4a269f-2534-4f52-a3ae-d79a80f39ce7",
+      "kwargs": {
+        "min_value": 1
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_row_count_to_be_between"
+    },
+    {
+      "id": "9947f39a-f581-4563-93d5-79319ea84dfe",
       "kwargs": {
         "column": "menu_id"
       },
       "meta": {},
       "severity": "critical",
       "type": "expect_column_values_to_not_be_null"
-    },
-    {
-      "id": "4cacb4a1-7a14-493a-8895-632fc45ff4f1",
-      "kwargs": {
-        "column": "menu_name"
-      },
-      "meta": {},
-      "severity": "critical",
-      "type": "expect_column_values_to_not_be_null"
-    },
-    {
-      "id": "e93708ab-05b7-49f2-a65c-03b6cf0d77e8",
-      "kwargs": {
-        "column": "category"
-      },
-      "meta": {},
-      "severity": "critical",
-      "type": "expect_column_values_to_not_be_null"
     }
   ],
-  "id": "9bf27ba0-207f-4775-9938-97f79d2a3f36",
+  "id": "c057eadc-caa5-4436-83a8-6790e587998a",
   "meta": {
     "great_expectations_version": "1.18.1"
   },
-  "name": "menu_master_suite",
+  "name": "silver_menu_master_suite",
   "notes": null
 }

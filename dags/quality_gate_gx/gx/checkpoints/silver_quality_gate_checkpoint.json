@@ -1,0 +1,32 @@
+{
+  "actions": [
+    {
+      "name": "update_data_docs",
+      "site_names": [],
+      "type": "update_data_docs"
+    }
+  ],
+  "id": "ddd02115-e9a9-4f2a-8b54-042c6e4ab559",
+  "name": "silver_quality_gate_checkpoint",
+  "result_format": {
+    "result_format": "SUMMARY"
+  },
+  "validation_definitions": [
+    {
+      "id": "24774b4b-0def-4ae0-b303-c11bf1d77537",
+      "name": "silver_menu_master_validation"
+    },
+    {
+      "id": "e680ecc8-cb10-4ba4-8815-388752f4d8b7",
+      "name": "silver_outlet_master_validation"
+    },
+    {
+      "id": "3623df7f-d887-4780-b4bf-a6d641a6ac78",
+      "name": "silver_orders_validation"
+    },
+    {
+      "id": "e4631cdf-abac-41e7-a750-946d28586c56",
+      "name": "silver_order_items_validation"
+    }
+  ]
+}

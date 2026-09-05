@@ -1,0 +1,22 @@
+{
+  "data": {
+    "asset": {
+      "id": "93da915c-e84a-4ce4-adbf-e8c1bf1df4ed",
+      "name": "order_items_silver_asset"
+    },
+    "batch_definition": {
+      "id": "86006810-74ba-414a-8cb4-8ea8f0319ce7",
+      "name": "order_items_def"
+    },
+    "datasource": {
+      "id": "039e3fa9-102c-4ec3-9f1f-db661f66282f",
+      "name": "silver_in_memory_data"
+    }
+  },
+  "id": "c54090ec-e220-4287-8731-4915f6ca68b9",
+  "name": "silver_order_items_runtime_validation",
+  "suite": {
+    "id": "e70e48f5-f89f-490b-ac20-468e84b22c2d",
+    "name": "silver_order_items_suite"
+  }
+}

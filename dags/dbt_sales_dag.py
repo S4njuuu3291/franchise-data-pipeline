@@ -40,18 +40,23 @@ with DAG(
 
     start_pipeline = EmptyOperator(task_id="start_pipeline")
 
-    extract_task = BashOperator(
-        task_id="extract_data",
-        bash_command='cd /opt/airflow/dags/go-extract && go run main.go -date "{{ dag_run.conf.get(\'execution_date\', ds) }}"',
-    )
-
-    quality_gate_task = BashOperator(
-        task_id="quality_gate_raw_data",
+    setup_gx_task = BashOperator(
+        task_id="setup_gx",
         bash_command=(
             "cd /opt/airflow/dags/quality_gate_gx && "
             "python setup.py --date "
             '"{{ dag_run.conf.get(\'execution_date\', ds) }}"'
         ),
+    )
+
+    extract_task = BashOperator(
+        task_id="extract_data",
+        bash_command='cd /opt/airflow/dags/go-extract && go run main.go -date "{{ dag_run.conf.get(\'execution_date\', ds) }}"',
+    )
+
+    bronze_quality_gate_task = BashOperator(
+        task_id="bronze_quality_gate",
+        bash_command="cd /opt/airflow/dags/quality_gate_gx && python bronze_quality_gate.py",
     )
 
     transform_task = GlueJobOperator(
@@ -63,6 +68,15 @@ with DAG(
         region_name="ap-southeast-1",
         aws_conn_id=CONN_ID,
         wait_for_completion=True,
+    )
+
+    silver_quality_gate_task = BashOperator(
+        task_id="silver_quality_gate",
+        bash_command=(
+            "cd /opt/airflow/dags/quality_gate_gx && "
+            "python setup_and_run_silver_quality_gate.py --date "
+            '"{{ dag_run.conf.get(\'execution_date\', ds) }}"'
+        ),
     )
 
     dbt_transform_gold = DbtTaskGroup(
@@ -101,4 +115,4 @@ with DAG(
     end_pipeline = EmptyOperator(task_id="end_pipeline")
 
     # hello_task >> start_pipeline >> dbt_transform_gold >> end_pipeline
-    start_pipeline >> extract_task >> quality_gate_task >> transform_task >> dbt_transform_gold >> end_pipeline
+    start_pipeline >> setup_gx_task >> extract_task >> bronze_quality_gate_task >> transform_task >> silver_quality_gate_task >> dbt_transform_gold >> end_pipeline

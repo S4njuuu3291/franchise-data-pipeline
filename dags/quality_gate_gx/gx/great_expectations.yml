@@ -94,10 +94,10 @@ fluent_datasources:
     assets:
       menu_master_asset:
         type: csv
-        id: d9f6d791-a2f4-4b27-b79b-b4f1b24daa30
+        id: 2affa1d0-f684-4391-9fb3-e2f8ee77f03c
         batch_definitions:
           daily_menu_definition:
-            id: b28c15e0-89ad-4250-aba8-036da1151c5b
+            id: 1f444486-c142-4ca2-bd4d-bbd4cf2ad1db
             partitioner:
               regex: .*\.csv$
               param_names: []
@@ -105,10 +105,10 @@ fluent_datasources:
           s3_prefix: menu_master/
       outlet_master_asset:
         type: csv
-        id: b95e4337-7d4d-4690-96e6-a434b61f7da7
+        id: 42859386-997c-4545-9c03-83d3039ba71e
         batch_definitions:
           daily_outlet_definition:
-            id: db128279-46d4-47aa-a77e-739530544982
+            id: bc6d3629-61b8-4d0f-b6c9-0ee07fdb9bd1
             partitioner:
               regex: .*\.csv$
               param_names: []
@@ -116,26 +116,137 @@ fluent_datasources:
           s3_prefix: outlet_master/
       orders_asset:
         type: csv
-        id: 5152502a-bbc5-418f-94ba-ee335c7f4830
+        id: 344b1fae-da81-45c6-87a1-21d72a7d8d1c
         batch_definitions:
           daily_orders_definition:
-            id: cdd7876a-c8c8-4652-8455-69e4ab79ffaa
+            id: 999cb08b-5a75-4fc5-b8b2-bbbf524d5214
             partitioner:
               regex: orders.csv$
               param_names: []
         connect_options:
-          s3_prefix: orders/year=2026/month=09/day=04/
+          s3_prefix: orders/year=2026/month=09/day=05/
       order_items_asset:
         type: csv
-        id: 7548174a-d505-4d28-a1cd-c57194a17c92
+        id: 7089e5e7-5c5b-400d-8033-6d4d4fa08dfe
         batch_definitions:
           daily_order_items_definition:
-            id: a1b763f0-10c0-44b5-9b93-f4a6bd2a5a12
+            id: 3196a94e-ecee-4990-8d36-74dfdf78a7df
             partitioner:
               regex: order_items.csv$
               param_names: []
         connect_options:
-          s3_prefix: order_items/year=2026/month=09/day=04/
+          s3_prefix: order_items/year=2026/month=09/day=05/
     bucket: franchise-pipeline-dev-data-lake-bronze
+  silver_data:
+    type: pandas_s3
+    id: d22d150b-260c-406b-b51f-a805a01f04eb
+    assets:
+      menu_silver_master_asset:
+        type: parquet
+        id: 6b7f1203-66fe-47a4-9d64-fae31da52771
+        batch_definitions:
+          daily_menu_silver_definition:
+            id: 2bb14a7f-6f86-4492-9010-3131f6dbdb79
+            partitioner:
+              regex: .*\.parquet$
+              param_names: []
+        connect_options:
+          s3_prefix: menu_master/
+      outlet_silver_master_asset:
+        type: parquet
+        id: a8085b25-e544-4838-b13e-0ad3eb57f8d3
+        batch_definitions:
+          daily_outlet_silver_definition:
+            id: 9faaafce-2df1-4b11-874b-cfcec84e1391
+            partitioner:
+              regex: .*\.parquet$
+              param_names: []
+        connect_options:
+          s3_prefix: outlet_master/
+      orders_silver_asset:
+        type: parquet
+        id: 39671b7d-0902-41c6-be39-b1e3ba6975eb
+        connect_options:
+          s3_prefix: orders/year=2026/month=09/day=05/
+      order_items_silver_asset:
+        type: parquet
+        id: c4ea4405-0737-4f77-8ceb-4a535f7977b5
+        connect_options:
+          s3_prefix: order_items/year=2026/month=09/day=05/
+    bucket: franchise-pipeline-dev-data-lake-silver
+  silver_pandas_data:
+    type: pandas_s3
+    id: dcd2732b-2cbb-4a70-bb8a-807d5a6c976d
+    assets:
+      menu_silver_master_asset:
+        type: parquet
+        id: f510105e-3296-43b7-9d48-8dbc31874c92
+        batch_definitions:
+          daily_menu_silver_definition:
+            id: 8fd685ec-6a3d-4819-b30e-2f36ceef77e9
+            partitioner:
+              regex: .*\.parquet$
+              param_names: []
+        connect_options:
+          s3_prefix: menu_master/
+      outlet_silver_master_asset:
+        type: parquet
+        id: dd0e18c2-58c7-40b7-a06b-5006cb88397e
+        batch_definitions:
+          daily_outlet_silver_definition:
+            id: 8d53ff7b-4a88-460e-af00-7570bc694c8e
+            partitioner:
+              regex: .*\.parquet$
+              param_names: []
+        connect_options:
+          s3_prefix: outlet_master/
+      orders_silver_asset:
+        type: parquet
+        id: a5b13437-20fa-4aae-b411-cb92869fe425
+        connect_options:
+          s3_prefix: orders/year=2026/month=09/day=05/
+      order_items_silver_asset:
+        type: parquet
+        id: 483a5692-5d9d-4fd8-8515-7660087fddd0
+        connect_options:
+          s3_prefix: order_items/year=2026/month=09/day=05/
+    bucket: franchise-pipeline-dev-data-lake-silver
+  silver_in_memory_data:
+    type: spark
+    id: 039e3fa9-102c-4ec3-9f1f-db661f66282f
+    assets:
+      menu_silver_asset:
+        type: dataframe
+        id: 5e0e001c-0fd2-4978-aa08-97a8a4e05fce
+        batch_metadata: {}
+        batch_definitions:
+          menu_def:
+            id: 42c73827-312c-4324-bce4-d431efbc2184
+            partitioner:
+      outlet_silver_asset:
+        type: dataframe
+        id: 6d13aa15-6652-46c8-92fa-c2810d487078
+        batch_metadata: {}
+        batch_definitions:
+          outlet_def:
+            id: f32130a1-ef5b-4124-80a7-5ce6c91c5467
+            partitioner:
+      orders_silver_asset:
+        type: dataframe
+        id: a8afdb4b-e759-497e-b645-5703be12dcda
+        batch_metadata: {}
+        batch_definitions:
+          orders_def:
+            id: cb4cf217-863b-4eba-b9c8-8a08973502d0
+            partitioner:
+      order_items_silver_asset:
+        type: dataframe
+        id: 93da915c-e84a-4ce4-adbf-e8c1bf1df4ed
+        batch_metadata: {}
+        batch_definitions:
+          order_items_def:
+            id: 86006810-74ba-414a-8cb4-8ea8f0319ce7
+            partitioner:
+    force_reuse_spark_context: true
 analytics_enabled:
 data_context_id: aa303a5c-2247-4651-8196-38ec92627be7

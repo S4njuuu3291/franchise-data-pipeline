@@ -1,0 +1,22 @@
+{
+  "data": {
+    "asset": {
+      "id": "5e0e001c-0fd2-4978-aa08-97a8a4e05fce",
+      "name": "menu_silver_asset"
+    },
+    "batch_definition": {
+      "id": "42c73827-312c-4324-bce4-d431efbc2184",
+      "name": "menu_def"
+    },
+    "datasource": {
+      "id": "039e3fa9-102c-4ec3-9f1f-db661f66282f",
+      "name": "silver_in_memory_data"
+    }
+  },
+  "id": "6844ff12-e8a6-4bf2-a764-a212aa9e26e2",
+  "name": "silver_menu_master_runtime_validation",
+  "suite": {
+    "id": "c057eadc-caa5-4436-83a8-6790e587998a",
+    "name": "silver_menu_master_suite"
+  }
+}

@@ -1,15 +1,16 @@
 {
   "expectations": [
     {
-      "id": "fab18fc7-2bff-4c68-8b4d-fb5bd958ebf1",
+      "id": "b914ab69-0b58-4e7e-a906-9b4eb6da6d6a",
       "kwargs": {
         "column_set": [
+          "order_id",
           "outlet_id",
-          "outlet_name",
-          "city",
-          "region_tier",
+          "cashier_id",
+          "total_amount",
+          "payment_method",
           "created_at",
-          "updated_at"
+          "data_quality_status"
         ]
       },
       "meta": {},
@@ -17,7 +18,25 @@
       "type": "expect_table_columns_to_match_set"
     },
     {
-      "id": "e050b4bf-6fe6-40dd-b938-52c8455ec582",
+      "id": "9681542e-f568-4bd4-b940-2d8c582fcf56",
+      "kwargs": {
+        "min_value": 1
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_row_count_to_be_between"
+    },
+    {
+      "id": "4d8e08c4-69b3-490b-bb1d-4227fd98cc38",
+      "kwargs": {
+        "column": "order_id"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "b172ec3a-f795-4315-bc11-3db90e0c97cf",
       "kwargs": {
         "column": "outlet_id"
       },
@@ -26,37 +45,19 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "a84e660b-93e8-4603-be2a-9fe5dd051ee0",
+      "id": "b7c31881-9df9-42cb-a7c8-23d11ba0a802",
       "kwargs": {
-        "column": "outlet_name"
-      },
-      "meta": {},
-      "severity": "critical",
-      "type": "expect_column_values_to_not_be_null"
-    },
-    {
-      "id": "a8aa0124-34ca-41e0-af46-5a6f2ddcc18e",
-      "kwargs": {
-        "column": "city"
-      },
-      "meta": {},
-      "severity": "critical",
-      "type": "expect_column_values_to_not_be_null"
-    },
-    {
-      "id": "bc90e541-7d50-4ac3-9f0f-8f8047242e9c",
-      "kwargs": {
-        "column": "region_tier"
+        "column": "created_at"
       },
       "meta": {},
       "severity": "critical",
       "type": "expect_column_values_to_not_be_null"
     }
   ],
-  "id": "4040aaee-b0b3-4c48-9305-a6189e5c3871",
+  "id": "f5c54951-dbf7-4345-b2b6-c788e7198435",
   "meta": {
     "great_expectations_version": "1.18.1"
   },
-  "name": "outlet_master_suite",
+  "name": "silver_orders_suite",
   "notes": null
 }
