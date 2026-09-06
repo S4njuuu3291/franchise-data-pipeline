@@ -1,7 +1,7 @@
 {
   "expectations": [
     {
-      "id": "50492019-f0c6-47d9-90d3-c333e4286311",
+      "id": "3f414f6e-426f-42e2-93f4-1fb23ebd929e",
       "kwargs": {
         "column_set": [
           "outlet_id",
@@ -17,7 +17,7 @@
       "type": "expect_table_columns_to_match_set"
     },
     {
-      "id": "ca49b899-0783-4955-b940-62bedff797eb",
+      "id": "d5ed4a40-ebbd-463e-9b7e-1cce7a396aee",
       "kwargs": {
         "min_value": 1
       },
@@ -26,7 +26,7 @@
       "type": "expect_table_row_count_to_be_between"
     },
     {
-      "id": "cbad7fda-383e-4a5e-a509-aa2a5a5ffb94",
+      "id": "cd91ec58-7c1f-4bd7-b865-d87a369f0090",
       "kwargs": {
         "column": "outlet_id"
       },
@@ -35,7 +35,7 @@
       "type": "expect_column_values_to_not_be_null"
     }
   ],
-  "id": "a6993eba-15e0-4841-8c5d-80fa60058b8e",
+  "id": "dc07c93d-1f7d-4ccd-8c5b-a85712a17be6",
   "meta": {
     "great_expectations_version": "1.18.1"
   },

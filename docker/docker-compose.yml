@@ -42,6 +42,7 @@ x-airflow-common:
     - ${HOME}/.aws:/opt/airflow/.aws:ro
   secrets:
     - airflow_reader_password
+    - gx_metadata_password
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -51,6 +52,9 @@ x-airflow-common:
       condition: service_healthy
 
 services:
+  # ==========================================================
+  # POSTGRES-PRIMARY : DATABASE UTAMA DAN SUMBER REPLIKASI
+  # ==========================================================
   postgres-primary:
     image: postgres:15-alpine
     environment:
@@ -117,6 +121,9 @@ services:
       - ./certs/server.crt:/etc/postgresql/tls/server.crt:ro
       - ./certs/server.key:/etc/postgresql/tls/server.key:ro
 
+  # ==========================================================
+  # POSTGRES-REPLICA : DATABASE REPLIKA UNTUK READ ACCESS
+  # ==========================================================
   postgres-replica:
     image: postgres:15-alpine
     environment:
@@ -168,6 +175,9 @@ services:
       - ./certs/server.crt:/etc/postgresql/tls/server.crt:ro
       - ./certs/server.key:/etc/postgresql/tls/server.key:ro
 
+  # ==========================================================
+  # POSTGRES : METADATA DATABASE UNTUK AIRFLOW
+  # ==========================================================
   postgres:
     image: postgres:15-alpine
     environment:
@@ -183,6 +193,54 @@ services:
       start_period: 2s
     restart: always
 
+  # ==========================================================
+  # GX-METADATA-DB : MENYIMPAN METADATA DAN METRIK VALIDASI GX
+  # ==========================================================
+  gx-metadata-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: gx_metadata_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/gx_metadata_password
+      POSTGRES_DB: gx_metadata
+    secrets:
+      - gx_metadata_password
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - gx_metadata_data:/var/lib/postgresql/data
+      - ./certs/server.crt:/etc/postgresql/tls/server.crt:ro
+      - ./certs/server.key:/etc/postgresql/tls/server.key:ro
+      - ../infrastructure/database/sql/gx-metadata.sql:/docker-entrypoint-initdb.d/gx-metadata.sql:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        cp /etc/postgresql/tls/server.crt /tmp/gx-server.crt
+        cp /etc/postgresql/tls/server.key /tmp/gx-server.key
+        chown postgres:postgres /tmp/gx-server.crt /tmp/gx-server.key
+        chmod 0644 /tmp/gx-server.crt
+        chmod 0600 /tmp/gx-server.key
+
+        docker-entrypoint.sh postgres \
+          -c ssl=on \
+          -c ssl_cert_file=/tmp/gx-server.crt \
+          -c ssl_key_file=/tmp/gx-server.key &
+        postgres_pid=$$!
+
+        until pg_isready -U gx_metadata_user -d gx_metadata; do sleep 1; done
+        psql -v ON_ERROR_STOP=1 -U gx_metadata_user -d gx_metadata \
+          -f /docker-entrypoint-initdb.d/gx-metadata.sql
+
+        wait "$$postgres_pid"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "gx_metadata_user", "-d", "gx_metadata"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  # ==========================================================
+  # REDIS : MESSAGE BROKER UNTUK CELERY
+  # ==========================================================
   redis:
     # Redis is limited to 7.2-bookworm due to licencing change
     # https://redis.io/blog/redis-adopts-dual-source-available-licensing/
@@ -197,6 +255,9 @@ services:
       start_period: 2s
     restart: always
 
+  # ==========================================================
+  # AIRFLOW-APISERVER : API DAN WEB SERVER AIRFLOW
+  # ==========================================================
   airflow-apiserver:
     <<: *airflow-common
     command: api-server
@@ -214,6 +275,9 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
+  # ==========================================================
+  # AIRFLOW-SCHEDULER : PENJADWALAN DAN EKSEKUSI DAG
+  # ==========================================================
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
@@ -229,6 +293,9 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
+  # ==========================================================
+  # AIRFLOW-DAG-PROCESSOR : MEMPROSES DEFINISI DAG
+  # ==========================================================
   airflow-dag-processor:
     <<: *airflow-common
     command: dag-processor
@@ -244,6 +311,9 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
+  # ==========================================================
+  # AIRFLOW-WORKER : MENJALANKAN TASK CELERY
+  # ==========================================================
   airflow-worker:
     <<: *airflow-common
     command: celery worker
@@ -267,6 +337,9 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
+  # ==========================================================
+  # AIRFLOW-TRIGGERER : MENANGANI DEFERRED TASK
+  # ==========================================================
   airflow-triggerer:
     <<: *airflow-common
     command: triggerer
@@ -282,6 +355,9 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
+  # ==========================================================
+  # AIRFLOW-INIT : INISIALISASI DATABASE DAN KONFIGURASI
+  # ==========================================================
   airflow-init:
     <<: *airflow-common
     entrypoint: /bin/bash
@@ -382,6 +458,9 @@ services:
       _PIP_ADDITIONAL_REQUIREMENTS: ''
     user: "0:0"
 
+  # ==========================================================
+  # AIRFLOW-CLI : UTILITAS COMMAND LINE AIRFLOW
+  # ==========================================================
   airflow-cli:
     <<: *airflow-common
     profiles:
@@ -400,6 +479,10 @@ services:
   # You can enable flower by adding "--profile flower" option e.g. docker-compose --profile flower up
   # or by explicitly targeted on the command line e.g. docker-compose up flower.
   # See: https://docs.docker.com/compose/profiles/
+
+  # ==========================================================
+  # FLOWER : MONITORING CELERY WORKER
+  # ==========================================================
   flower:
     <<: *airflow-common
     command: celery flower
@@ -423,6 +506,7 @@ volumes:
   primary_data:
   replica_data:
   postgres-db-volume:
+  gx_metadata_data:
 
 secrets:
   airflow_reader_password:
@@ -431,3 +515,5 @@ secrets:
     file: ./secrets/postgres_primary_password.txt
   postgres_replica_password:
     file: ./secrets/postgres_replica_password.txt
+  gx_metadata_password:
+    file: ./secrets/gx_metadata_password.txt

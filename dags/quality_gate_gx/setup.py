@@ -107,6 +107,12 @@ for column in ("menu_id", "menu_name", "category"):
     menu_suite.add_expectation(
         gx.expectations.ExpectColumnValuesToNotBeNull(column=column)
     )
+menu_suite.add_expectation(
+    gx.expectations.ExpectTableRowCountToBeBetween(
+        min_value=1,
+        meta={"severity": "critical"},
+    )
+)
 
 context.suites.add_or_update(menu_suite)
 logger.info("Expectation suite saved: %s (%d expectations)", menu_suite_name, len(menu_suite.expectations))
@@ -136,6 +142,12 @@ for column in ("outlet_id", "outlet_name", "city", "region_tier"):
     outlet_suite.add_expectation(
         gx.expectations.ExpectColumnValuesToNotBeNull(column=column)
     )
+outlet_suite.add_expectation(
+    gx.expectations.ExpectTableRowCountToBeBetween(
+        min_value=1,
+        meta={"severity": "critical"},
+    )
+)
 
 context.suites.add_or_update(outlet_suite)
 logger.info("Expectation suite saved: %s (%d expectations)", outlet_suite_name, len(outlet_suite.expectations))
@@ -314,6 +326,12 @@ for column in (
 order_items_suite.add_expectation(
     gx.expectations.ExpectColumnValuesToBeUnique(
         column="item_id",
+        meta={"severity": "critical"},
+    )
+)
+order_items_suite.add_expectation(
+    gx.expectations.ExpectTableRowCountToBeBetween(
+        min_value=1,
         meta={"severity": "critical"},
     )
 )

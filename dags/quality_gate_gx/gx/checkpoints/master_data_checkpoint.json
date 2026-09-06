@@ -1,17 +1,17 @@
 {
   "actions": [],
-  "id": "cb3fde9c-3efc-4f9c-b9c1-9c2ba6ceac58",
+  "id": "df216eb4-4d1d-4992-ba7e-3b25dbb939b7",
   "name": "master_data_checkpoint",
   "result_format": {
     "result_format": "SUMMARY"
   },
   "validation_definitions": [
     {
-      "id": "150031a4-9913-4431-a708-6f2123c1a898",
+      "id": "b73821e9-0403-44f5-bd8c-85a01c34022c",
       "name": "menu_master_validation"
     },
     {
-      "id": "ecfd49bb-8e91-44bd-8d52-a14ca68db90c",
+      "id": "e3a7b71b-7a5f-46df-ae10-c2e70fbe30a7",
       "name": "outlet_master_validation"
     }
   ]

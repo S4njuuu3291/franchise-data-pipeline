@@ -7,7 +7,7 @@ docker-up:
 	docker compose -f $(COMPOSE_FILE) up -d
 
 docker-up-db:
-	docker compose -f $(COMPOSE_FILE) up -d postgres-primary postgres-replica postgres
+	docker compose -f $(COMPOSE_FILE) up -d postgres-primary postgres-replica postgres gx-metadata-db
 
 docker-down:
 	docker compose -f $(COMPOSE_FILE) down
@@ -31,6 +31,15 @@ repl-db-shell:
 		dbname=main_db \
 		user=airflow_reader \
 		sslmode=disable"
+
+.PHONY: gx-db-shell
+gx-db-shell:
+	PGPASSWORD="$$(tr -d '\n' < docker/secrets/gx_metadata_password.txt)" psql \
+		"host=localhost \
+		port=5434 \
+		dbname=gx_metadata \
+		user=gx_metadata_user \
+		sslmode=require"
 
 .PHONY: worker-shell
 worker-shell:
