@@ -94,10 +94,10 @@ fluent_datasources:
     assets:
       menu_master_asset:
         type: csv
-        id: 2affa1d0-f684-4391-9fb3-e2f8ee77f03c
+        id: 8ffc4060-a5b3-4373-841c-e06907846ca9
         batch_definitions:
           daily_menu_definition:
-            id: 1f444486-c142-4ca2-bd4d-bbd4cf2ad1db
+            id: bbfb4978-d13e-46d6-bffc-b3f86d373bf6
             partitioner:
               regex: .*\.csv$
               param_names: []
@@ -105,37 +105,15 @@ fluent_datasources:
           s3_prefix: menu_master/
       outlet_master_asset:
         type: csv
-        id: 42859386-997c-4545-9c03-83d3039ba71e
+        id: c775196b-853f-45e3-9f34-261e678cf536
         batch_definitions:
           daily_outlet_definition:
-            id: bc6d3629-61b8-4d0f-b6c9-0ee07fdb9bd1
+            id: 52603ded-730c-4f3e-8ff8-9c6c188a7387
             partitioner:
               regex: .*\.csv$
               param_names: []
         connect_options:
           s3_prefix: outlet_master/
-      orders_asset:
-        type: csv
-        id: 344b1fae-da81-45c6-87a1-21d72a7d8d1c
-        batch_definitions:
-          daily_orders_definition:
-            id: 999cb08b-5a75-4fc5-b8b2-bbbf524d5214
-            partitioner:
-              regex: orders.csv$
-              param_names: []
-        connect_options:
-          s3_prefix: orders/year=2026/month=09/day=05/
-      order_items_asset:
-        type: csv
-        id: 7089e5e7-5c5b-400d-8033-6d4d4fa08dfe
-        batch_definitions:
-          daily_order_items_definition:
-            id: 3196a94e-ecee-4990-8d36-74dfdf78a7df
-            partitioner:
-              regex: order_items.csv$
-              param_names: []
-        connect_options:
-          s3_prefix: order_items/year=2026/month=09/day=05/
     bucket: franchise-pipeline-dev-data-lake-bronze
   silver_data:
     type: pandas_s3
