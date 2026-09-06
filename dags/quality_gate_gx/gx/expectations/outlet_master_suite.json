@@ -1,7 +1,7 @@
 {
   "expectations": [
     {
-      "id": "fab18fc7-2bff-4c68-8b4d-fb5bd958ebf1",
+      "id": "b0aeca12-79da-4715-b2b6-795c37fdda9e",
       "kwargs": {
         "column_set": [
           "outlet_id",
@@ -17,7 +17,7 @@
       "type": "expect_table_columns_to_match_set"
     },
     {
-      "id": "e050b4bf-6fe6-40dd-b938-52c8455ec582",
+      "id": "a2685ec2-f6aa-497d-8ab7-d025d7ecbcd2",
       "kwargs": {
         "column": "outlet_id"
       },
@@ -26,7 +26,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "a84e660b-93e8-4603-be2a-9fe5dd051ee0",
+      "id": "60dba842-61d5-4f02-a876-9c94a762e2d4",
       "kwargs": {
         "column": "outlet_name"
       },
@@ -35,7 +35,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "a8aa0124-34ca-41e0-af46-5a6f2ddcc18e",
+      "id": "fa019b4f-e883-458e-9994-fa40aa5e2476",
       "kwargs": {
         "column": "city"
       },
@@ -44,7 +44,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "bc90e541-7d50-4ac3-9f0f-8f8047242e9c",
+      "id": "6cb37111-7211-4a4c-9750-0770a93aa701",
       "kwargs": {
         "column": "region_tier"
       },

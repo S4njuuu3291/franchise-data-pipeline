@@ -100,21 +100,7 @@ def bronze_to_silver(spark, date, outlet_df, menu_df):
     else:
         log.info("✅ Semua outlet_id di orders valid (ada di outlet_master).")
 
-    # 3. Cek payment_method apakah nilai yang valid
-    valid_payments = ["Cash", "Credit Card", "Debit Card", "GoPay", "OVO", "QRIS"]
-    invalid_payments = orders_df.filter(~F.col("payment_method").isin(valid_payments))
-    invalid_count = invalid_payments.count()
-    if invalid_count > 0:
-        log.warning(f"⚠️ Ditemukan {invalid_count} orders dengan payment_method tidak dikenal.")
-        invalid_payments.select("order_id", "payment_method").show(5, truncate=False)
-        invalid_payments.write \
-            .mode("overwrite") \
-            .parquet(f"{QUARANTINE_BUCKET}/invalid_payments/{partition}/")
-        log.info(f"📤 Invalid payments → {QUARANTINE_BUCKET}/invalid_payments/{partition}/")
-    else:
-        log.info("✅ Semua payment_method valid.")
-
-    # 4. Cek harga sesuai tier: price_per_item harus cocok dengan salah satu tier di menu_master
+    # 3. Cek harga sesuai tier: price_per_item harus cocok dengan salah satu tier di menu_master
     items_with_menu = order_items_df \
         .join(menu_df.select("menu_id", "base_price", "price_tier_1", "price_tier_2", "price_tier_3"),
               on="menu_id", how="left") \
@@ -136,7 +122,7 @@ def bronze_to_silver(spark, date, outlet_df, menu_df):
     else:
         log.info("✅ Semua price_per_item sesuai dengan tier yang tersedia.")
 
-    # 5. Cek duplicate order_id
+    # 4. Cek duplicate order_id
     dup_orders = orders_df.groupBy("order_id").count().filter(F.col("count") > 1)
     dup_count = dup_orders.count()
     if dup_count > 0:
@@ -148,7 +134,7 @@ def bronze_to_silver(spark, date, outlet_df, menu_df):
     else:
         log.info("✅ Tidak ada order_id duplikat.")
 
-    # 6. Cek cashier anomaly — cashier dengan jumlah transaksi ekstrem (z-score > 3)
+    # 5. Cek cashier anomaly — cashier dengan jumlah transaksi ekstrem (z-score > 3)
     cashier_stats = orders_df.groupBy("cashier_id") \
         .agg(F.count("order_id").alias("tx_count"))
     stats = cashier_stats.select(

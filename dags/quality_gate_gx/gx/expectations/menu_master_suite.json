@@ -1,7 +1,7 @@
 {
   "expectations": [
     {
-      "id": "9ed56b52-74c3-46f6-8c8a-bd238a29fafc",
+      "id": "a3fa3718-4cb4-4aa0-b96d-c14443569313",
       "kwargs": {
         "column_set": [
           "menu_id",
@@ -20,7 +20,7 @@
       "type": "expect_table_columns_to_match_set"
     },
     {
-      "id": "d36cd72a-a1f5-4e0e-a362-735a4b4dbc62",
+      "id": "f7ed1969-d108-4d1a-ab0d-0b5e134ddde5",
       "kwargs": {
         "column": "menu_id"
       },
@@ -29,7 +29,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "4cacb4a1-7a14-493a-8895-632fc45ff4f1",
+      "id": "fe4b54af-47ee-4e3d-a1e0-751a2e0558c3",
       "kwargs": {
         "column": "menu_name"
       },
@@ -38,7 +38,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "e93708ab-05b7-49f2-a65c-03b6cf0d77e8",
+      "id": "dea472e3-1ea2-4920-8d7c-927556355604",
       "kwargs": {
         "column": "category"
       },
