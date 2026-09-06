@@ -2,9 +2,11 @@ from datetime import datetime, timedelta
 import subprocess
 import yaml
 import os
+import sys
 
 # Load konfigurasi dari file YAML
-config_path = os.path.join(os.path.dirname(__file__), "simulation_config.yaml")
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.join(SCRIPT_DIR, "simulation_config.yaml")
 with open(config_path, "r") as f:
     config = yaml.safe_load(f)
 
@@ -24,13 +26,15 @@ while current_date <= end_date:
     print(f"[EXEC] Menjalankan generator untuk tanggal: {date_str}")
     
     # Memanggil skrip generate_transactions.py via terminal secara otomatis
-    cmd = ["python3","data-generator/generate_transactions.py", "--date", date_str]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    cmd = [sys.executable, os.path.join(SCRIPT_DIR, "generate_transactions.py"), "--date", date_str]
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     
     # Cetak output dari skrip utama agar kita bisa memantau prosesnya
     print(result.stdout)
     if result.stderr:
         print(f"WARNING/ERROR: {result.stderr}")
+    if result.returncode != 0:
+        raise RuntimeError(f"Generator gagal untuk tanggal {date_str} dengan exit code {result.returncode}")
     
     day_end = datetime.now()
     day_duration = (day_end - day_start).total_seconds()

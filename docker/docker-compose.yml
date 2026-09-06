@@ -1,11 +1,11 @@
 x-airflow-common:
   &airflow-common
   build:
-    context: .
-    dockerfile: Dockerfile.airflow
+    context: ..
+    dockerfile: docker/Dockerfile.airflow
   image: ${AIRFLOW_IMAGE_NAME:-franchise-airflow-custom}
   env_file:
-    - ${ENV_FILE_PATH:-.env}
+    - ${ENV_FILE_PATH:-../.env}
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
@@ -18,6 +18,7 @@ x-airflow-common:
     DB_PORT: '5432'
     PG_HOST: postgres-replica
     PG_PORT: '5432'
+    PG_SSLMODE: require
     AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY}
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
@@ -32,13 +33,15 @@ x-airflow-common:
     AIRFLOW_CONN_AWS_DEFAULT: 'aws://${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}@/?region_name=ap-southeast-1'
     CONNECTION_CHECK_MAX_COUNT: "0"
   volumes:
-    - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
-    - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
-    - ${AIRFLOW_PROJ_DIR:-.}/dbt_pipeline:/opt/airflow/dbt_pipeline
-    - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
+    - ${AIRFLOW_PROJ_DIR:-..}/dags:/opt/airflow/dags
+    - ${AIRFLOW_PROJ_DIR:-..}/logs:/opt/airflow/logs
+    - ${AIRFLOW_PROJ_DIR:-..}/dbt_pipeline:/opt/airflow/dbt_pipeline
+    - ${AIRFLOW_PROJ_DIR:-..}/config:/opt/airflow/config
     # - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
     # - ${AIRFLOW_PROJ_DIR:-.}/scripts:/opt/airflow/scripts
     - ${HOME}/.aws:/opt/airflow/.aws:ro
+  secrets:
+    - airflow_reader_password
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -51,11 +54,17 @@ services:
   postgres-primary:
     image: postgres:15-alpine
     environment:
-      POSTGRES_USER: replicator_user
-      POSTGRES_PASSWORD: supersecretpassword
+      POSTGRES_USER: primary_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_primary_password
       POSTGRES_DB: main_db
+
+    secrets:
+      - postgres_primary_password
+      - postgres_replica_password
+    
     ports:
-      - "5431:5432"
+      - "127.0.0.1:5432:5432"
+
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -65,52 +74,99 @@ services:
           rm -rf /var/lib/postgresql/data/* /var/lib/postgresql/data/.[!.]*
         fi
 
+        # PostgreSQL hanya menerima private key milik root atau user database.
+        cp /etc/postgresql/tls/server.crt /tmp/server.crt
+        cp /etc/postgresql/tls/server.key /tmp/server.key
+        chown postgres:postgres /tmp/server.crt /tmp/server.key
+        chmod 0644 /tmp/server.crt
+        chmod 0600 /tmp/server.key
+
         # 2. Jalankan inisialisasi Postgres asli di latar belakang secara singkat
-        docker-entrypoint.sh postgres &
+        docker-entrypoint.sh postgres \
+          -c ssl=on \
+          -c ssl_cert_file=/tmp/server.crt \
+          -c ssl_key_file=/tmp/server.key &
         
         # 3. Tunggu sampai folder data terisi oleh initdb asli
         until [ -s /var/lib/postgresql/data/pg_hba.conf ]; do sleep 0.2; done
         
         # 4. Timpa pg_hba.conf dengan hak akses replikasi Anda
-        echo "host replication replicator_user 0.0.0.0/0 trust" >> /var/lib/postgresql/data/pg_hba.conf
+        echo "hostssl replication primary_user samenet scram-sha-256" >> /var/lib/postgresql/data/pg_hba.conf
         
         # 5. Berikan sinyal reload agar Postgres membaca pg_hba.conf yang baru
-        until pg_isready -U replicator_user; do sleep 0.2; done
-        psql -U replicator_user -d postgres -c "SELECT pg_reload_conf();"
+        until pg_isready -U primary_user; do sleep 0.2; done
+        psql -U primary_user -d postgres -c "SELECT pg_reload_conf();"
+
+        # Create the replica login on the primary so it is included in the base backup.
+        replica_password=$$(cat /run/secrets/postgres_replica_password)
+        PGPASSWORD="$$replica_password" psql -v ON_ERROR_STOP=1 -U primary_user -d postgres \
+          -c "DO \$\$ BEGIN
+                IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'replica_user') THEN
+                  CREATE ROLE replica_user LOGIN PASSWORD '$$replica_password';
+                ELSE
+                  ALTER ROLE replica_user LOGIN PASSWORD '$$replica_password';
+                END IF;
+              END \$\$;"
         
         echo "🚀 Primary with replication permissions is ready!"
+
+        # Keep this wrapper alive while PostgreSQL runs in the background.
         wait
     volumes:
       - primary_data:/var/lib/postgresql/data
+      - ./certs/server.crt:/etc/postgresql/tls/server.crt:ro
+      - ./certs/server.key:/etc/postgresql/tls/server.key:ro
 
   postgres-replica:
     image: postgres:15-alpine
     environment:
-      PGPASSWORD: supersecretpassword
+      POSTGRES_USER: replica_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_replica_password
+      POSTGRES_DB: main_db
+
+    secrets:
+      - postgres_primary_password
+      - postgres_replica_password
+
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5433:5432"
+
     depends_on:
       - postgres-primary
     entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
         echo "Waiting for primary to be ready..."
-        until pg_isready -h postgres-primary -p 5432 -U replicator_user; do sleep 0.2; done
+        until pg_isready -h postgres-primary -p 5432 -U primary_user; do sleep 0.2; done
         
         if [ ! -s /var/lib/postgresql/data/PG_VERSION ]; then
           echo "Clearing data directory for clean clone..."
           rm -rf /var/lib/postgresql/data/* /var/lib/postgresql/data/.[!.]*
           echo "Cloning primary database..."
-          pg_basebackup -h postgres-primary -D /var/lib/postgresql/data -U replicator_user -v -P -R -X stream
+          PGPASSWORD=$$(cat /run/secrets/postgres_primary_password) \
+            pg_basebackup "host=postgres-primary port=5432 user=primary_user dbname=replication sslmode=require" \
+            -D /var/lib/postgresql/data -v -P -R -X stream
         fi
+
+        # TLS wajib untuk koneksi client ke replica.
+        cp /etc/postgresql/tls/server.crt /tmp/server.crt
+        cp /etc/postgresql/tls/server.key /tmp/server.key
+        chown postgres:postgres /tmp/server.crt /tmp/server.key
+        chmod 0644 /tmp/server.crt
+        chmod 0600 /tmp/server.key
         
         chown -R postgres:postgres /var/lib/postgresql/data
         chmod 0700 /var/lib/postgresql/data
         
         echo "Starting replica..."
-        exec su-exec postgres postgres
+        exec su-exec postgres postgres \
+          -c ssl=on \
+          -c ssl_cert_file=/tmp/server.crt \
+          -c ssl_key_file=/tmp/server.key
     volumes:
       - replica_data:/var/lib/postgresql/data
+      - ./certs/server.crt:/etc/postgresql/tls/server.crt:ro
+      - ./certs/server.key:/etc/postgresql/tls/server.key:ro
 
   postgres:
     image: postgres:15-alpine
@@ -367,3 +423,11 @@ volumes:
   primary_data:
   replica_data:
   postgres-db-volume:
+
+secrets:
+  airflow_reader_password:
+    file: ./secrets/airflow_reader_password.txt
+  postgres_primary_password:
+    file: ./secrets/postgres_primary_password.txt
+  postgres_replica_password:
+    file: ./secrets/postgres_replica_password.txt

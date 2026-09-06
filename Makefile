@@ -1,35 +1,54 @@
+COMPOSE_FILE := docker/docker-compose.yml
+
 docker-build:
-	docker compose build	
+	docker compose -f $(COMPOSE_FILE) build
 
 docker-up:
-	docker compose up -d
+	docker compose -f $(COMPOSE_FILE) up -d
+
+docker-up-db:
+	docker compose -f $(COMPOSE_FILE) up -d postgres-primary postgres-replica postgres
 
 docker-down:
-	docker compose down
+	docker compose -f $(COMPOSE_FILE) down
+
+docker-down-v:
+	docker compose -f $(COMPOSE_FILE) down -v
 
 pm-db-shell:
-	docker compose exec postgres-primary psql -U replicator_user -d main_db
+	psql \
+		"host=localhost \
+		port=5432 \
+		dbname=main_db \
+		user=primary_user \
+		sslmode=verify-full \
+		sslrootcert=docker/certs/ca.crt"
 
 repl-db-shell:
-	docker compose exec postgres-replica psql -U replicator_user -d main_db
+	PGPASSWORD="$$(cd $(TF_DATABASE_DIR) && terraform output -raw airflow_etl_password)" psql \
+		"host=localhost \
+		port=5433 \
+		dbname=main_db \
+		user=airflow_reader \
+		sslmode=disable"
 
 .PHONY: worker-shell
 worker-shell:
-	docker compose exec airflow-worker bash
+	docker compose -f $(COMPOSE_FILE) exec airflow-worker bash
 
 docker-restart:
-	docker compose restart
+	docker compose -f $(COMPOSE_FILE) restart
 
 # ---------------------------------------------------------------------------
 # init-schema — Inject SOURCE-SCHEMA.sql ke primary database
 # ---------------------------------------------------------------------------
 init-schema:
 	@echo "Waiting for PostgreSQL at $(DB_HOST):$(DB_PORT) ..."
-	@until docker compose exec postgres-primary pg_isready -U replicator_user > /dev/null 2>&1; do \
+	@until docker compose -f $(COMPOSE_FILE) exec postgres-primary pg_isready -U primary_user > /dev/null 2>&1; do \
 		sleep 1; \
 	done
-	@echo "Injecting SOURCE-SCHEMA.sql into primary ..."
-	@docker compose exec -T postgres-primary psql -U replicator_user -d main_db < SOURCE-SCHEMA.sql
+	@echo "Injecting $(SOURCE_SCHEMA) into primary ..."
+	@docker compose -f $(COMPOSE_FILE) exec -T postgres-primary psql -U primary_user -d main_db < $(SOURCE_SCHEMA)
 	@echo "Schema injected successfully."
 
 # ---------------------------------------------------------------------------
@@ -38,7 +57,7 @@ init-schema:
 .PHONY: truncate-primary
 truncate-primary:
 	@echo "Truncating all tables in primary database ..."
-	@docker compose exec -T postgres-primary psql -U replicator_user -d main_db -c \
+	@docker compose -f $(COMPOSE_FILE) exec -T postgres-primary psql -U primary_user -d main_db -c \
 		"TRUNCATE TABLE order_items, orders, menu_master, outlet_master RESTART IDENTITY CASCADE;"
 	@echo "All tables truncated."
 
@@ -48,7 +67,7 @@ truncate-primary:
 .PHONY: drop-schema
 drop-schema:
 	@echo "Dropping all tables in primary database ..."
-	@docker compose exec -T postgres-primary psql -U replicator_user -d main_db -c \
+	@docker compose -f $(COMPOSE_FILE) exec -T postgres-primary psql -U primary_user -d main_db -c \
 		"DROP TABLE IF EXISTS order_items, orders, menu_master, outlet_master CASCADE;"
 	@echo "All tables dropped."
 
@@ -65,6 +84,41 @@ DBT_TABLES = dim_date dim_menu dim_outlet fact_order_items snp_menu_master snp_o
 # ---------------------------------------------------------------------------
 
 TF_DEV_DIR = infrastructure/environments/dev
+TF_DATABASE_DIR = infrastructure/database
+SOURCE_SCHEMA = $(TF_DATABASE_DIR)/sql/SOURCE-SCHEMA.sql
+
+# ---------------------------------------------------------------------------
+# Terraform database — Role, user, dan grant PostgreSQL
+# ---------------------------------------------------------------------------
+.PHONY: tf-init-db
+tf-init-db:
+	@echo "Initializing Terraform (database) ..."
+	cd $(TF_DATABASE_DIR) && terraform init
+
+.PHONY: tf-validate-db
+tf-validate-db:
+	@echo "Validating Terraform configuration (database) ..."
+	cd $(TF_DATABASE_DIR) && terraform validate
+
+.PHONY: tf-plan-db
+tf-plan-db:
+	@echo "Planning Terraform (database) ..."
+	cd $(TF_DATABASE_DIR) && terraform plan
+
+.PHONY: tf-show-airflow-password
+tf-show-airflow-password:
+	@echo "Reading Airflow password from Terraform state ..."
+	cd $(TF_DATABASE_DIR) && terraform output -raw airflow_etl_password
+
+.PHONY: tf-apply-db
+tf-apply-db:
+	@echo "Applying Terraform (database) ..."
+	cd $(TF_DATABASE_DIR) && terraform apply --auto-approve
+
+.PHONY: tf-destroy-db
+tf-destroy-db:
+	@echo "Destroying Terraform-managed database roles and grants ..."
+	cd $(TF_DATABASE_DIR) && terraform destroy --auto-approve
 
 # ---------------------------------------------------------------------------
 # athena-truncate-dbt — Hapus semua tabel/view hasil dbt di Athena + data S3
@@ -210,7 +264,7 @@ spark-transform:
 .PHONY: glue-build
 glue-build:
 	@echo "Building custom Glue image ..."
-	docker build -t franchise-glue-custom:latest -f Dockerfile.glue .
+	docker build -t franchise-glue-custom:latest -f infrastructure/docker/Dockerfile.glue .
 
 .PHONY: glue-run
 glue-run:

@@ -67,6 +67,26 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
+func getPassword() string {
+	if password := os.Getenv("PG_PASSWORD"); password != "" {
+		return password
+	}
+
+	passwordFile := getEnv("PG_PASSWORD_FILE", "/run/secrets/airflow_reader_password")
+
+	if passwordFile == "/run/secrets/airflow_reader_password" {
+		if _, err := os.Stat(passwordFile); os.IsNotExist(err) {
+			passwordFile = "../../docker/secrets/airflow_reader_password.txt"
+		}
+	}
+
+	password, err := os.ReadFile(passwordFile)
+	if err != nil {
+		log.Fatalf("PG_PASSWORD tidak tersedia dan gagal membaca %s: %v", passwordFile, err)
+	}
+	return strings.TrimSpace(string(password))
+}
+
 type QueryFileName struct {
 	Query    string
 	FileName string
@@ -167,10 +187,10 @@ func main() {
 
 	dbHost := getEnv("PG_HOST", "localhost")
 	dbPort := getEnv("PG_PORT", "5432")
-	dbUser := getEnv("PG_USER", "replicator_user")
-	dbPass := getEnv("PG_PASSWORD", "supersecretpassword")
+	dbUser := getEnv("PG_USER", "airflow_reader")
+	dbPass := getPassword()
 	dbName := getEnv("PG_DATABASE", "main_db")
-	dbSSLMode := getEnv("PG_SSLMODE", "disable")
+	dbSSLMode := getEnv("PG_SSLMODE", "require")
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		dbUser, dbPass, dbHost, dbPort, dbName, dbSSLMode)
 	pool := newPool(ctx, connStr)

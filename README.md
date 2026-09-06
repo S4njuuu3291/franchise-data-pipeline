@@ -217,8 +217,9 @@ docker compose exec airflow-worker bash -c \
 |-- README.md
 |-- SOURCE-SCHEMA.sql              # PostgreSQL source schema
 |-- struktur-oltp.mmd              # ERD diagram (Mermaid)
-|-- docker-compose.yml             # Airflow + PostgreSQL + Redis
-|-- Dockerfile.airflow             # Custom Airflow image
+|-- infrastructure/docker/        # Docker Compose, images, and local secrets
+|   |-- docker-compose.yml         # Airflow + PostgreSQL + Redis
+|   |-- Dockerfile.airflow         # Custom Airflow image
 |-- Makefile                       # Command center
 |-- PLAN.md                        # Development roadmap
 |-- config/
