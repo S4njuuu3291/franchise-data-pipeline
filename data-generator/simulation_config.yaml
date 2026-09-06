@@ -9,10 +9,10 @@ simulation:
 
   # Kontrol volume transaksi — scale 1.0 = 100% (volume original)
   # Rekomendasi: 0.3 (30%) untuk keseimbangan antara kecepatan & data realistis
-  volume_scale: 0.2
+  volume_scale: 0.05
 
   # Range transaksi per outlet berdasarkan Tier (sebelum kena multiplier weekend/skew)
   tx_ranges_per_outlet:
-    tier_1: [1500, 4000]    # [min, max] — Outlet besar kota utama
-    tier_2: [1000, 2500]    # Outlet menengah kota satelit
-    tier_3: [230, 1500]     # Outlet kecil rural
+    tier_1: [150, 400]    # [min, max] — Outlet besar kota utama
+    tier_2: [100, 250]    # Outlet menengah kota satelit
+    tier_3: [23, 150]     # Outlet kecil rural
