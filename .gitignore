@@ -71,6 +71,12 @@ logs/
 # ── Docker ──────────────────────────────────────────────────────────
 .docker/
 
+# ── Local Docker secrets & TLS private material ─────────────────────
+docker/secrets/
+docker/certs/*.key
+docker/certs/*.csr
+docker/certs/*.srl
+
 # ── Misc ────────────────────────────────────────────────────────────
 *.bak
 *.tmp

@@ -39,7 +39,7 @@ if [ $# -gt 0 ]; then shift; fi
 # Build custom Glue image jika belum ada
 if ! docker image inspect "$GLUE_IMAGE" >/dev/null 2>&1; then
     echo "🔧 Building custom Glue image ($GLUE_IMAGE)..."
-    docker build -t "$GLUE_IMAGE" -f "$WORKSPACE_LOCATION/Dockerfile.glue" "$WORKSPACE_LOCATION"
+    docker build -t "$GLUE_IMAGE" -f "$WORKSPACE_LOCATION/infrastructure/docker/Dockerfile.glue" "$WORKSPACE_LOCATION"
     echo ""
 fi
 
