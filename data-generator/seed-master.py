@@ -5,6 +5,17 @@ from faker import Faker
 import psycopg2
 from psycopg2.extras import execute_values
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def get_secret_or_env(env_name, secret_path):
+    value = os.getenv(env_name)
+    if value:
+        return value
+
+    with open(os.path.join(PROJECT_ROOT, secret_path), encoding="utf-8") as secret_file:
+        return secret_file.read().strip()
+
 # =========================================================================
 # 1. KONSTANTA DATA MASTER (ENTERPRISE COLUMNAR STANDARD)
 # =========================================================================
@@ -74,11 +85,16 @@ START_TIMESTAMP = datetime(2026, 2, 25, 6, 0, 0)
 
 def get_db_connection():
     return psycopg2.connect(
-        host="localhost",
-        port="5431",
-        user="replicator_user",
-        password="supersecretpassword",
-        database="main_db"
+        host=os.getenv("DB_HOST", "127.0.0.1"),
+        port=os.getenv("DB_PORT", "5432"),
+        user=os.getenv("DB_USER", "primary_user"),
+        password=get_secret_or_env("DB_PASSWORD", "docker/secrets/postgres_primary_password.txt"),
+        database=os.getenv("DB_NAME", "main_db"),
+        sslmode=os.getenv("DB_SSLMODE", "verify-full"),
+        sslrootcert=os.getenv(
+            "DB_SSLROOTCERT",
+            os.path.join(PROJECT_ROOT, "docker/certs/ca.crt"),
+        ),
     )
 
 def seed_outlets(cursor):

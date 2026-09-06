@@ -6,6 +6,17 @@ from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import execute_values
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def get_secret_or_env(env_name, secret_path):
+    value = os.getenv(env_name)
+    if value:
+        return value
+
+    with open(os.path.join(PROJECT_ROOT, secret_path), encoding="utf-8") as secret_file:
+        return secret_file.read().strip()
+
 # =========================================================================
 # Load Konfigurasi dari YAML
 # =========================================================================
@@ -46,11 +57,16 @@ PAYMENT_WEIGHTS = [40, 20, 15, 12, 8, 5] # Mayoritas cashless sesuai realitas ur
 
 def get_db_connection():
     return psycopg2.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        port=os.getenv("DB_PORT", "5431"),
-        user=os.getenv("DB_USER", "replicator_user"),
-        password=os.getenv("DB_PASSWORD", "supersecretpassword"),
-        database=os.getenv("DB_NAME", "main_db")
+        host=os.getenv("DB_HOST", "127.0.0.1"),
+        port=os.getenv("DB_PORT", "5432"),
+        user=os.getenv("DB_USER", "primary_user"),
+        password=get_secret_or_env("DB_PASSWORD", "docker/secrets/postgres_primary_password.txt"),
+        database=os.getenv("DB_NAME", "main_db"),
+        sslmode=os.getenv("DB_SSLMODE", "verify-full"),
+        sslrootcert=os.getenv(
+            "DB_SSLROOTCERT",
+            os.path.join(PROJECT_ROOT, "docker/certs/ca.crt"),
+        ),
     )
 
 # =========================================================================
