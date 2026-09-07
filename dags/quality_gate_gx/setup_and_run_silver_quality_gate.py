@@ -1,10 +1,16 @@
 import argparse
 import logging
 import os
-from datetime import datetime
+from datetime import date, datetime
+from pathlib import Path
 
 import great_expectations as gx
 from great_expectations.exceptions.exceptions import NoAvailableBatchesError
+from great_expectations.data_context.types.resource_identifiers import (
+    ExpectationSuiteIdentifier,
+    ValidationResultIdentifier,
+)
+import psycopg2
 from pyspark.sql import SparkSession
 import yaml
 
@@ -15,6 +21,31 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 logging.getLogger("great_expectations").setLevel(logging.WARNING)
+
+
+def connect_to_gx_metadata_db():
+    """Connect to GX metadata DB from Airflow or from the local host."""
+    container_secret = Path("/run/secrets/gx_metadata_password")
+    local_secret = Path(__file__).resolve().parents[2] / "docker/secrets/gx_metadata_password.txt"
+
+    if container_secret.exists():
+        password_path = container_secret
+        host = "gx-metadata-db"
+        port = 5432
+    else:
+        password_path = local_secret
+        host = "localhost"
+        port = 5434
+
+    password = password_path.read_text(encoding="utf-8").strip()
+    return psycopg2.connect(
+        host=host,
+        port=port,
+        dbname="gx_metadata",
+        user="gx_metadata_user",
+        password=password,
+        sslmode=os.environ.get("GX_METADATA_SSLMODE", "require"),
+    )
 
 parser = argparse.ArgumentParser(description="Run the GX Silver quality gate")
 parser.add_argument("--date", required=True, help="Tanggal data dengan format YYYY-MM-DD")
@@ -147,13 +178,66 @@ context.checkpoints.add_or_update(checkpoint)
 # ── 8. EXECUTE VALIDATIONS & BUILD DATA DOCS ──────────────────────────
 try:
     logger.info("Menjalankan Validasi Silver quality gate...")
-    results = [
-        definition.run(batch_parameters={"dataframe": dataframe})
-        for definition, dataframe in zip(
-            definitions,
-            [df_menu, df_outlet, df_orders, df_order_items],
-        )
-    ]
+    dataframes = [df_menu, df_outlet, df_orders, df_order_items]
+    with connect_to_gx_metadata_db() as metadata_connection:
+        results = []
+        for definition, dataframe in zip(definitions, dataframes):
+            validation_result = definition.run(batch_parameters={"dataframe": dataframe})
+            results.append(validation_result)
+
+            meta = getattr(validation_result, "meta", {}) or {}
+            run_id = meta.get("run_id")
+            execution_datetime = getattr(run_id, "run_time", None)
+            execution_date = (
+                execution_datetime.date()
+                if isinstance(execution_datetime, datetime)
+                else execution_datetime
+                if isinstance(execution_datetime, date)
+                else date.today()
+            )
+            statistics = getattr(validation_result, "statistics", {}) or {}
+            success_rate = statistics.get("success_percent", 0.0)
+            volume = 0
+            for individual_result in getattr(validation_result, "results", []) or []:
+                if individual_result.get("expectation_config", {}).get("type") == (
+                    "expect_table_row_count_to_be_between"
+                ):
+                    volume = individual_result.get("result", {}).get("observed_value", 0)
+                    break
+
+            status = "SUCCESS" if validation_result.success else "FAILED"
+            asset_name = meta.get("active_batch_definition", {}).get(
+                "data_asset_name", definition.name
+            )
+            validation_id = ValidationResultIdentifier(
+                expectation_suite_identifier=ExpectationSuiteIdentifier(
+                    name=validation_result.suite_name
+                ),
+                run_id=run_id,
+                batch_identifier=validation_result.batch_id,
+            )
+
+            with metadata_connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO public.data_quality_ledger (
+                        validation_id, execution_date, stage, asset_name,
+                        volume, success_rate, status
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        str(validation_id),
+                        execution_date,
+                        "SILVER",
+                        asset_name,
+                        volume,
+                        success_rate,
+                        status,
+                    ),
+                )
+
+        metadata_connection.commit()
 
     if not all(result.success for result in results):
         raise RuntimeError(

@@ -6,26 +6,26 @@
       "type": "update_data_docs"
     }
   ],
-  "id": "3d135338-e56f-4e19-b17f-1fdc80830bc3",
+  "id": "dc68287e-a629-4d2b-8786-c83a922ed99b",
   "name": "silver_runtime_quality_gate_checkpoint",
   "result_format": {
     "result_format": "SUMMARY"
   },
   "validation_definitions": [
     {
-      "id": "6844ff12-e8a6-4bf2-a764-a212aa9e26e2",
+      "id": "d7d1ae3e-983b-4821-896d-f589a468c6d5",
       "name": "silver_menu_master_runtime_validation"
     },
     {
-      "id": "8c85f5c6-3d57-436a-954b-266cba4a82bd",
+      "id": "d2a24591-0a5c-4402-a716-00c177dcaeee",
       "name": "silver_outlet_master_runtime_validation"
     },
     {
-      "id": "65759f95-f09b-4e8c-aea1-b0f468626f6f",
+      "id": "0a52176f-df58-4803-b1fb-c70581c7e6b2",
       "name": "silver_orders_runtime_validation"
     },
     {
-      "id": "c54090ec-e220-4287-8731-4915f6ca68b9",
+      "id": "3b74bbb4-2da3-4b31-aa63-a78207cd5994",
       "name": "silver_order_items_runtime_validation"
     }
   ]

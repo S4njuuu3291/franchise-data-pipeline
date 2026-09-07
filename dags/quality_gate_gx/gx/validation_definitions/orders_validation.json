@@ -1,22 +1,22 @@
 {
   "data": {
     "asset": {
-      "id": "344b1fae-da81-45c6-87a1-21d72a7d8d1c",
+      "id": "0a69ad9e-9a8d-43b2-a9a9-415437cef989",
       "name": "orders_asset"
     },
     "batch_definition": {
-      "id": "999cb08b-5a75-4fc5-b8b2-bbbf524d5214",
+      "id": "810ce81f-e015-496e-996a-71b3712d2166",
       "name": "daily_orders_definition"
     },
     "datasource": {
-      "id": "db6249a5-2db4-42f2-8ed2-1b273aa2c7cd",
+      "id": "3954ebb1-24f3-4bd9-b332-8b960daab7bb",
       "name": "bronze_data"
     }
   },
-  "id": "65336729-d805-48ce-90eb-f0ca4032c84b",
+  "id": "122bdb19-27c6-4856-aa44-ca13d4544164",
   "name": "orders_validation",
   "suite": {
-    "id": "7d762fc1-b41d-48a1-9cdf-8d4a83e9fbfd",
+    "id": "080d9929-2e9c-49dc-a1bb-a86c2e7dced0",
     "name": "orders_suite"
   }
 }

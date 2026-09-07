@@ -1,5 +1,22 @@
 COMPOSE_FILE := docker/docker-compose.yml
 
+GRAFANA_BASE_URL ?= http://localhost:3000
+GRAFANA_ADMIN_USER ?= admin
+GRAFANA_ADMIN_PASSWORD ?= $(shell tr -d '\r\n' < docker/secrets/grafana_admin_password.txt 2>/dev/null)
+
+.PHONY: export-dashboard
+export-dashboard:
+	@echo "📤 Exporting dashboard from Dev to provisioning..."
+	@GRAFANA_BASE_URL="$(GRAFANA_BASE_URL)" \
+	GRAFANA_ADMIN_USER="$(GRAFANA_ADMIN_USER)" \
+	GRAFANA_ADMIN_PASSWORD="$(GRAFANA_ADMIN_PASSWORD)" \
+	python3 grafana-config/export_dashboard.py
+	@echo "✓ Dashboard export complete. Reloading provisioning..."
+	@curl -sf -X POST \
+		-u "$(GRAFANA_ADMIN_USER):$(GRAFANA_ADMIN_PASSWORD)" \
+		"$(GRAFANA_BASE_URL)/api/admin/provisioning/dashboards/reload"
+	@echo "✓ Dashboard provisioning reloaded."
+
 docker-build:
 	docker compose -f $(COMPOSE_FILE) build
 
@@ -7,7 +24,7 @@ docker-up:
 	docker compose -f $(COMPOSE_FILE) up -d
 
 docker-up-db:
-	docker compose -f $(COMPOSE_FILE) up -d postgres-primary postgres-replica postgres
+	docker compose -f $(COMPOSE_FILE) up -d postgres-primary postgres-replica postgres gx-metadata-db
 
 docker-down:
 	docker compose -f $(COMPOSE_FILE) down
@@ -31,6 +48,15 @@ repl-db-shell:
 		dbname=main_db \
 		user=airflow_reader \
 		sslmode=disable"
+
+.PHONY: gx-db-shell
+gx-db-shell:
+	PGPASSWORD="$$(tr -d '\n' < docker/secrets/gx_metadata_password.txt)" psql \
+		"host=localhost \
+		port=5434 \
+		dbname=gx_metadata \
+		user=gx_metadata_user \
+		sslmode=require"
 
 .PHONY: worker-shell
 worker-shell:

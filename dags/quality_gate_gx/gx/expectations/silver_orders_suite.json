@@ -1,7 +1,7 @@
 {
   "expectations": [
     {
-      "id": "b914ab69-0b58-4e7e-a906-9b4eb6da6d6a",
+      "id": "9162cc62-f478-41c4-9b09-1afd3d0abb04",
       "kwargs": {
         "column_set": [
           "order_id",
@@ -18,7 +18,7 @@
       "type": "expect_table_columns_to_match_set"
     },
     {
-      "id": "9681542e-f568-4bd4-b940-2d8c582fcf56",
+      "id": "cf7a35c0-2ff1-4f59-9e77-3bc2221ed3fc",
       "kwargs": {
         "min_value": 1
       },
@@ -27,7 +27,7 @@
       "type": "expect_table_row_count_to_be_between"
     },
     {
-      "id": "4d8e08c4-69b3-490b-bb1d-4227fd98cc38",
+      "id": "6e8c9c30-f005-4aab-a4b1-36a45b5b9e7c",
       "kwargs": {
         "column": "order_id"
       },
@@ -36,7 +36,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "b172ec3a-f795-4315-bc11-3db90e0c97cf",
+      "id": "ba3cdb5a-197d-4867-b51a-7a32b88eaec9",
       "kwargs": {
         "column": "outlet_id"
       },
@@ -45,7 +45,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "b7c31881-9df9-42cb-a7c8-23d11ba0a802",
+      "id": "ae4a4133-f668-46fa-9178-d53366935e4c",
       "kwargs": {
         "column": "created_at"
       },
@@ -54,7 +54,7 @@
       "type": "expect_column_values_to_not_be_null"
     }
   ],
-  "id": "f5c54951-dbf7-4345-b2b6-c788e7198435",
+  "id": "21b63eea-a13e-487c-95b0-de0647d225c4",
   "meta": {
     "great_expectations_version": "1.18.1"
   },

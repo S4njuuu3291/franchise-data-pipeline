@@ -1,7 +1,7 @@
 {
   "expectations": [
     {
-      "id": "a3fa3718-4cb4-4aa0-b96d-c14443569313",
+      "id": "9a2931fa-7c4a-436a-b4f2-e9464cb8c745",
       "kwargs": {
         "column_set": [
           "menu_id",
@@ -20,7 +20,7 @@
       "type": "expect_table_columns_to_match_set"
     },
     {
-      "id": "f7ed1969-d108-4d1a-ab0d-0b5e134ddde5",
+      "id": "7a7620cd-4975-43dc-b896-8f4bb5790109",
       "kwargs": {
         "column": "menu_id"
       },
@@ -29,7 +29,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "fe4b54af-47ee-4e3d-a1e0-751a2e0558c3",
+      "id": "ec762440-f4a6-4fe6-92b4-2e3d8fb9c7b5",
       "kwargs": {
         "column": "menu_name"
       },
@@ -38,16 +38,27 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "dea472e3-1ea2-4920-8d7c-927556355604",
+      "id": "b5c3befe-6d20-4a43-a541-60cab7fe1ea4",
       "kwargs": {
         "column": "category"
       },
       "meta": {},
       "severity": "critical",
       "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "3a4e2bac-b1aa-49d5-bf5b-e8533b193e54",
+      "kwargs": {
+        "min_value": 1
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_table_row_count_to_be_between"
     }
   ],
-  "id": "9bf27ba0-207f-4775-9938-97f79d2a3f36",
+  "id": "9497a510-a12c-444c-a2d0-aada6eaa6230",
   "meta": {
     "great_expectations_version": "1.18.1"
   },
