@@ -1,5 +1,22 @@
 COMPOSE_FILE := docker/docker-compose.yml
 
+GRAFANA_BASE_URL ?= http://localhost:3000
+GRAFANA_ADMIN_USER ?= admin
+GRAFANA_ADMIN_PASSWORD ?= $(shell tr -d '\r\n' < docker/secrets/grafana_admin_password.txt 2>/dev/null)
+
+.PHONY: export-dashboard
+export-dashboard:
+	@echo "📤 Exporting dashboard from Dev to provisioning..."
+	@GRAFANA_BASE_URL="$(GRAFANA_BASE_URL)" \
+	GRAFANA_ADMIN_USER="$(GRAFANA_ADMIN_USER)" \
+	GRAFANA_ADMIN_PASSWORD="$(GRAFANA_ADMIN_PASSWORD)" \
+	python3 grafana-config/export_dashboard.py
+	@echo "✓ Dashboard export complete. Reloading provisioning..."
+	@curl -sf -X POST \
+		-u "$(GRAFANA_ADMIN_USER):$(GRAFANA_ADMIN_PASSWORD)" \
+		"$(GRAFANA_BASE_URL)/api/admin/provisioning/dashboards/reload"
+	@echo "✓ Dashboard provisioning reloaded."
+
 docker-build:
 	docker compose -f $(COMPOSE_FILE) build
 
