@@ -1,7 +1,7 @@
 # Franchise Data Pipeline
 
-> **End-to-end ETL pipeline for franchise restaurant transactional data.**
-> From PostgreSQL -> Bronze (S3) -> Silver (AWS Glue) -> Gold (dbt on Athena)
+> **End-to-end data engineering pipeline for franchise restaurant transactional data.**
+> The pipeline extracts data from PostgreSQL, stores raw data in an S3 Bronze layer, validates it with Great Expectations, transforms it into a cleaned Silver layer using AWS Glue, and builds analytics-ready Gold models with dbt on Athena. Data quality results and pipeline metrics are stored in a metadata database and monitored through Grafana.
 
 ---
 
@@ -15,12 +15,24 @@
 ![Apache Airflow](https://img.shields.io/badge/Airflow-3.0-017CEE?logo=apacheairflow&logoColor=white)
 ![Terraform](https://img.shields.io/badge/Terraform-1.11-844FBA?logo=terraform&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
-
+![Grafana](https://img.shields.io/badge/Grafana-13.1.3-F46800?logo=grafana&logoColor=white)
 ![AWS Glue](https://img.shields.io/badge/AWS_Glue-FF9900?logo=amazonaws&logoColor=white)
 ![AWS Athena](https://img.shields.io/badge/AWS_Athena-FF9900?logo=amazonathena&logoColor=white)
 ![AWS S3](https://img.shields.io/badge/AWS_S3-569A31?logo=amazons3&logoColor=white)
 ![AWS Glue Catalog](https://img.shields.io/badge/Glue_Catalog-232F3E?logo=amazonaws&logoColor=white)
 ![Great Expectations](https://img.shields.io/badge/Great_Expectations-Data_Quality-2E7D32)
+
+---
+
+## Architecture Decisions
+
+Ringkasan keputusan utama proyek ada di folder [`docs/adr/`](docs/adr/):
+
+| ADR | Ringkasan |
+|---|---|
+| ADR-001 | Great Expectations digunakan sebagai quality gate setelah extraction dan sebelum transformation. |
+| ADR-002 | Database menggunakan SSL, secret file, user khusus, dan hak akses yang lebih terbatas. |
+| ADR-003 | Hasil validasi GX disimpan ke database metadata dan dibaca Grafana untuk monitoring. |
 
 ---
 
@@ -48,6 +60,7 @@ The pipeline flows data through four layers:
 | **Orchestration** | Apache Airflow 3.0 | Schedules and orchestrates the daily pipeline DAG |
 | **Transformation** | AWS Glue (PySpark 3.5) | Bronze to Silver: data cleansing, validation, quarantine logic |
 | **Data Quality** | Great Expectations | Quality gate for Bronze data before Glue transformation |
+| **Monitoring** | PostgreSQL + Grafana | Menyimpan dan menampilkan hasil validasi GX serta volume data |
 | **Analytics Modeling** | dbt 1.11 (Cosmos) | Silver to Gold: staging, SCD Type 2 snapshots, dimensional marts |
 | **Query Engine** | AWS Athena | Serverless SQL queries on Gold layer tables |
 | **Infrastructure** | Terraform 1.11 | Provisions all AWS resources (S3, Glue, Athena, IAM) |
@@ -99,7 +112,7 @@ All infrastructure is provisioned via Terraform (`infrastructure/environments/de
 
 ![ERD](assets/erd.png)
 
-Refer to `struktur-oltp.yaml` and `SOURCE-SCHEMA.sql` for complete schema details.
+Refer to [`infrastructure/database/sql/SOURCE-SCHEMA.sql`](infrastructure/database/sql/SOURCE-SCHEMA.sql) for the complete schema.
 
 
 ## dbt Models & Lineage
@@ -142,13 +155,39 @@ Great Expectations (GX) runs after the Go extraction task and before the Glue tr
 - `orders`: schema, completeness, unique `order_id`, minimum row count, and valid payment methods;
 - `order_items`: schema, completeness, unique `item_id`, positive quantity, and non-negative amounts.
 
-The GX configuration, expectation suites, validation definitions, checkpoints, and Data Docs setup are located in [`dags/quality_gate_gx/`](dags/quality_gate_gx/). The transaction quality gate accepts the target date as an argument:
+The GX configuration, expectation suites, validation definitions, checkpoints, and Data Docs setup are located in [`dags/quality_gate_gx/`](dags/quality_gate_gx/). The quality gate accepts the target date as an argument:
 
 ```bash
-python setup.py --date YYYY-MM-DD
+python dags/quality_gate_gx/bronze_quality_gate.py --date YYYY-MM-DD
 ```
 
 The master and transaction validations use separate checkpoints. The transaction checkpoint combines the `orders` and `order_items` validation definitions and runs before the pipeline continues to Glue.
+
+Silver quality validation can be run with:
+
+```bash
+python dags/quality_gate_gx/setup_and_run_silver_quality_gate.py --date YYYY-MM-DD
+```
+
+### Quality Metadata and Grafana
+
+Hasil validasi Bronze dan Silver disimpan ke database `gx_metadata`, pada tabel `data_quality_ledger`. Data ini digunakan Grafana untuk menampilkan status validasi, success rate, dan volume data.
+
+Service lokalnya:
+
+| Service | Address | Keterangan |
+|---|---|---|
+| `gx-metadata-db` | `127.0.0.1:5434` | Database metadata GX |
+| `grafana` | `http://localhost:3000` | Dashboard monitoring |
+
+Dashboard yang diedit untuk eksperimen disimpan di `grafana-config/dashboards-dev/`. Untuk menyimpan perubahan tersebut sebagai dashboard provisioned:
+
+```bash
+make export-dashboard \
+  GRAFANA_DEV_DASHBOARD_TITLE="Franchise Pipeline Monitoring"
+```
+
+File hasil export disimpan ke `grafana-config/provisioning/dashboards/` dan dashboard provisioned dikunci dari perubahan UI.
 
 ### dbt Tests
 
@@ -169,6 +208,7 @@ The master and transaction validations use separate checkpoints. The transaction
 - Go 1.21+
 - AWS CLI configured with appropriate credentials
 - Terraform 1.11+ (for infrastructure deployment)
+- Docker secrets in `docker/secrets/`
 
 ### Quick Start
 
@@ -200,6 +240,9 @@ make run-transactions
 | `make tf-apply-dev` | Apply Terraform infrastructure (dev) |
 | `make athena-truncate-dbt` | Drop all dbt objects in Athena and clean S3 gold layer |
 | `make worker-shell` | Open shell in Airflow worker container |
+| `make docker-up-db` | Start database services, including GX metadata database |
+| `make gx-db-shell` | Connect to the GX metadata database |
+| `make export-dashboard` | Export dashboard DEV and reload Grafana provisioning |
 
 ### Manual Pipeline Execution
 
@@ -215,11 +258,10 @@ docker compose exec airflow-worker bash -c \
 ```
 .
 |-- README.md
-|-- SOURCE-SCHEMA.sql              # PostgreSQL source schema
-|-- struktur-oltp.mmd              # ERD diagram (Mermaid)
-|-- infrastructure/docker/        # Docker Compose, images, and local secrets
-|   |-- docker-compose.yml         # Airflow + PostgreSQL + Redis
+|-- docker/                       # Docker Compose, images, and local secrets
+|   |-- docker-compose.yml         # Airflow + PostgreSQL + Redis + Grafana
 |   |-- Dockerfile.airflow         # Custom Airflow image
+|   |-- grafana-entrypoint.sh      # Load Grafana secret at startup
 |-- Makefile                       # Command center
 |-- PLAN.md                        # Development roadmap
 |-- config/
@@ -240,6 +282,10 @@ docker compose exec airflow-worker bash -c \
 |-- infrastructure/
 |   |-- modules/                   # Terraform modules
 |   |-- environments/dev/          # Dev environment config
+|   |-- database/sql/              # Database schemas and metadata SQL
+|-- grafana-config/               # Grafana datasource, dashboards, and export tool
+|   |-- dashboards-dev/            # Dashboard hasil eksperimen UI
+|   |-- provisioning/              # Dashboard terkunci dan datasource
 |-- assets/
 |   |-- architecture.png           # Architecture diagram
 |   |-- sales_data_dbt_pipeline-graph.png  # DAG visualization
