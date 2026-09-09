@@ -1,43 +1,69 @@
 flowchart LR
-    %% ── Style Definitions ──────────────────────────────────────────────
-    classDef source fill:#336791,color:#fff,stroke-width:1px
-    classDef bronze fill:#CD7F32,color:#fff,stroke-width:1px
-    classDef silver fill:#7F8C8D,color:#fff,stroke-width:1px
-    classDef gold fill:#F1C40F,color:#000,stroke-width:1px
-    classDef compute fill:#E67E22,color:#fff,stroke-width:1px
-    classDef target fill:#2ECC71,color:#fff,stroke-width:1px
+    %% Franchise Data Platform — batch, analytics, and real-time CDC
+    classDef source fill:#336791,color:#fff,stroke:#1f3f57
+    classDef ingest fill:#6f42c1,color:#fff,stroke:#482682
+    classDef bronze fill:#CD7F32,color:#fff,stroke:#8a551d
+    classDef silver fill:#7F8C8D,color:#fff,stroke:#50595c
+    classDef gold fill:#F1C40F,color:#000,stroke:#a77f00
+    classDef compute fill:#E67E22,color:#fff,stroke:#a94f0b
+    classDef quality fill:#e74c3c,color:#fff,stroke:#962d22
+    classDef serving fill:#2ECC71,color:#000,stroke:#208c4d
+    classDef observe fill:#34495e,color:#fff,stroke:#202c38
 
-    %% ── Pipeline Flow ──────────────────────────────────────────────────
-    subgraph SRC [Source]
-        PG[(PostgreSQL DB)]:::source
+    subgraph OP["Operational Source"]
+        PG[(PostgreSQL)]:::source
+    end
+    subgraph BATCH["Batch / Daily Pipeline"]
+        AIRFLOW[Apache Airflow<br/>DAG orchestration]:::compute
+        GO[Go extractor<br/>master + transactions]:::ingest
+        BRONZE[(S3 Bronze<br/>raw CSV + date partitions)]:::bronze
+        GX_B[GX Bronze Quality Gate<br/>schema, null, duplicate, domain rules]:::quality
+        SPARK[AWS Glue / PySpark<br/>Bronze → Silver]:::compute
+        SILVER[(S3 Silver<br/>validated Parquet)]:::silver
+        QUAR[(S3 Quarantine<br/>invalid / orphan records)]:::silver
+        GX_S[GX Silver Quality Gate<br/>smoke + referential checks]:::quality
+    end
+    subgraph ANALYTICS["Analytics / Gold"]
+        DBT[dbt incremental models<br/>snapshots + dimensions + facts]:::compute
+        ATHENA[(Amazon Athena<br/>Glue Catalog)]:::gold
+        GOLD[(S3 Gold<br/>dim, fact, OBT)]:::gold
+        OBT[Serving: OBT Franchise Sales]:::serving
+    end
+    subgraph REALTIME["Real-time CDC Pipeline"]
+        DEB[Debezium]:::ingest
+        RP[(Redpanda<br/>Kafka-compatible broker)]:::ingest
+        GO_CONSUMER[Go consumer<br/>consumer groups + batching]:::compute
+        CH[(ClickHouse<br/>Bronze / Silver / Gold)]:::gold
+        DASH[ClickHouse dashboard]:::serving
+    end
+    subgraph OBS["Observability & Infrastructure"]
+        GRAF[Grafana]:::observe
+        TF[Terraform<br/>AWS infrastructure]:::compute
+        CI[CI/CD]:::compute
     end
 
-    subgraph INGEST [Ingestion & Raw]
-        Go[Go Extractor]:::compute
-        B_S3[Bronze: Raw S3\nCSV Files]:::bronze
-    end
+    PG --> GO --> BRONZE
+    AIRFLOW -. orchestrates .-> GO
+    AIRFLOW -. orchestrates .-> GX_B
+    AIRFLOW -. orchestrates .-> SPARK
+    AIRFLOW -. orchestrates .-> GX_S
+    AIRFLOW -. orchestrates .-> DBT
+    BRONZE --> GX_B --> SPARK
+    SPARK --> SILVER
+    SPARK --> QUAR
+    SILVER --> GX_S --> DBT
+    DBT --> ATHENA
+    DBT --> GOLD --> OBT
 
-    subgraph TRANS [Transformation]
-        Glue[AWS Glue Job]:::compute
-        S_S3[Silver: Cleaned S3\nParquet]:::silver
-        Q_S3[Quarantine S3\nBad Records]:::silver
-    end
+    PG --> DEB --> RP --> GO_CONSUMER --> CH --> DASH
 
-    subgraph BI_LAYER [Analytics & Serving]
-        dbt[dbt + Athena]:::compute
-        G_S3[Gold: Dim & Fact\nTables]:::gold
-    end
+    GX_B -. quality metadata .-> GRAF
+    GX_S -. quality metadata .-> GRAF
+    RP -. broker monitoring .-> GRAF
+    CH -. query / health monitoring .-> GRAF
+    TF -. provisions .-> PG
+    TF -. provisions .-> BRONZE
+    TF -. provisions .-> ATHENA
+    CI -. validates and deploys .-> AIRFLOW
 
-    %% ── Connections ────────────────────────────────────────────────────
-    PG --> Go
-    Go --> B_S3
-    
-    B_S3 --> Glue
-    Glue --> S_S3
-    Glue --> Q_S3
-    
-    S_S3 --> dbt
-    dbt --> G_S3
-
-    %% Note Orkes
-    note["💡 Airflow mengatur seluruh jadwal eksekusi (Go -> Glue -> dbt)"]
+    LEGEND["Batch: PostgreSQL → S3 Bronze → Glue/PySpark → S3 Silver → dbt/Athena → Gold/OBT<br/>Real-time: PostgreSQL CDC → Debezium → Redpanda → Go → ClickHouse"]:::serving

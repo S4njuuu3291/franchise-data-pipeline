@@ -1,0 +1,80 @@
+erDiagram
+    %% OLTP schema — PostgreSQL public schema
+
+    outlet_master {
+        int outlet_id PK
+        varchar_150 outlet_name
+        varchar_100 city
+        varchar_50 region_tier
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    menu_master {
+        int menu_id PK
+        varchar_200 menu_name
+        varchar_50 category
+        numeric_12_2 base_price
+        numeric_12_2 price_tier_1
+        numeric_12_2 price_tier_2
+        numeric_12_2 price_tier_3
+        boolean is_promo_active
+        timestamp updated_at
+    }
+
+    customers {
+        int customer_id PK
+        varchar_150 customer_name
+        varchar_255 email UK
+        varchar_30 phone
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    employees {
+        int employee_id PK
+        varchar_150 employee_name
+        employee_role employee_role
+        int outlet_id FK
+        employment_status employment_status
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    orders {
+        int order_id PK
+        int customer_id FK "Nullable for walk-in"
+        int outlet_id FK
+        int cashier_id FK
+        numeric_14_2 total_amount
+        payment_method payment_method
+        order_status order_status
+        timestamp created_at
+    }
+
+    order_items {
+        int item_id PK
+        int order_id FK
+        int menu_id FK
+        int quantity
+        numeric_12_2 price_per_item
+        numeric_14_2 subtotal
+    }
+
+    payments {
+        int payment_id PK
+        int order_id FK
+        payment_method payment_method
+        payment_status payment_status
+        numeric_14_2 amount
+        timestamp paid_at
+        varchar_100 provider_reference
+    }
+
+    outlet_master ||--o{ employees : employs
+    outlet_master ||--o{ orders : receives
+    customers ||--o{ orders : places
+    employees ||--o{ orders : processes
+    orders ||--|{ order_items : contains
+    menu_master ||--o{ order_items : sold_as
+    orders ||--o{ payments : paid_by
