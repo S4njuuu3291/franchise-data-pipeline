@@ -1,0 +1,36 @@
+{
+  "expectations": [
+    {
+      "id": "fb04299a-a347-4f2d-bdb5-f0d86d7ffa87",
+      "kwargs": {
+        "column_set": [
+          "payment_id",
+          "order_id",
+          "payment_method",
+          "payment_status",
+          "amount",
+          "paid_at",
+          "provider_reference"
+        ]
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_columns_to_match_set"
+    },
+    {
+      "id": "d52c138f-ef62-460f-915e-74de2d628a66",
+      "kwargs": {
+        "min_value": 1
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_row_count_to_be_between"
+    }
+  ],
+  "id": "91c2cde5-c751-4b7a-abb6-b262e70454a3",
+  "meta": {
+    "great_expectations_version": "1.18.1"
+  },
+  "name": "silver_payments_suite",
+  "notes": null
+}

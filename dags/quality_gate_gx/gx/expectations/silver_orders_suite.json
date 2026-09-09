@@ -1,14 +1,16 @@
 {
   "expectations": [
     {
-      "id": "9162cc62-f478-41c4-9b09-1afd3d0abb04",
+      "id": "885a7522-c1b5-44ab-b713-d6307f2abdc0",
       "kwargs": {
         "column_set": [
           "order_id",
+          "customer_id",
           "outlet_id",
           "cashier_id",
           "total_amount",
           "payment_method",
+          "order_status",
           "created_at",
           "data_quality_status"
         ]
@@ -18,7 +20,7 @@
       "type": "expect_table_columns_to_match_set"
     },
     {
-      "id": "cf7a35c0-2ff1-4f59-9e77-3bc2221ed3fc",
+      "id": "9e239a36-5108-4eb8-8b7c-db354fcf700d",
       "kwargs": {
         "min_value": 1
       },
@@ -27,7 +29,7 @@
       "type": "expect_table_row_count_to_be_between"
     },
     {
-      "id": "6e8c9c30-f005-4aab-a4b1-36a45b5b9e7c",
+      "id": "768e1b68-521c-455a-afd6-15b4882d6e1f",
       "kwargs": {
         "column": "order_id"
       },
@@ -36,7 +38,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "ba3cdb5a-197d-4867-b51a-7a32b88eaec9",
+      "id": "dc30ee55-fdc9-4b8d-8a03-1ad8621cc76b",
       "kwargs": {
         "column": "outlet_id"
       },
@@ -45,7 +47,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "ae4a4133-f668-46fa-9178-d53366935e4c",
+      "id": "f1f6c656-2217-4f78-a20d-5c0876dab10c",
       "kwargs": {
         "column": "created_at"
       },
@@ -54,7 +56,7 @@
       "type": "expect_column_values_to_not_be_null"
     }
   ],
-  "id": "21b63eea-a13e-487c-95b0-de0647d225c4",
+  "id": "35155b9a-7f52-449a-9c48-c6e7617db1a3",
   "meta": {
     "great_expectations_version": "1.18.1"
   },

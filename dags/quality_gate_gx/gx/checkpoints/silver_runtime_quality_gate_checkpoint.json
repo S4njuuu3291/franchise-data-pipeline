@@ -6,27 +6,39 @@
       "type": "update_data_docs"
     }
   ],
-  "id": "dc68287e-a629-4d2b-8786-c83a922ed99b",
+  "id": "982f163d-1ea4-4fdd-88d3-dac6ea9b77d2",
   "name": "silver_runtime_quality_gate_checkpoint",
   "result_format": {
     "result_format": "SUMMARY"
   },
   "validation_definitions": [
     {
-      "id": "d7d1ae3e-983b-4821-896d-f589a468c6d5",
+      "id": "7e2fe0d1-9234-4fa6-afc8-d5d772be8cdc",
       "name": "silver_menu_master_runtime_validation"
     },
     {
-      "id": "d2a24591-0a5c-4402-a716-00c177dcaeee",
+      "id": "bc8d86f3-042f-4894-9239-3728859f7f07",
       "name": "silver_outlet_master_runtime_validation"
     },
     {
-      "id": "0a52176f-df58-4803-b1fb-c70581c7e6b2",
+      "id": "1a09f464-778e-4165-af15-bb6384aa0fad",
+      "name": "silver_customers_runtime_validation"
+    },
+    {
+      "id": "0f3f83e9-17a9-4e46-8e38-c0ce42253d09",
+      "name": "silver_employees_runtime_validation"
+    },
+    {
+      "id": "756ef9ce-7c61-4f21-b8b5-3a1d706e9ed1",
       "name": "silver_orders_runtime_validation"
     },
     {
-      "id": "3b74bbb4-2da3-4b31-aa63-a78207cd5994",
+      "id": "22e698bb-a56b-499f-9e77-4fa283dc6409",
       "name": "silver_order_items_runtime_validation"
+    },
+    {
+      "id": "9b908d2c-d9b4-478f-b233-73b7c6f5b849",
+      "name": "silver_payments_runtime_validation"
     }
   ]
 }

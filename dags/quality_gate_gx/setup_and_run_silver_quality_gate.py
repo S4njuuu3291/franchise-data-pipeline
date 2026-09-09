@@ -85,7 +85,12 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 # ── 4. INITIALIZE GX CONTEXT & IKAT SPARK SESSION ─────────────────────
-context = gx.get_context(mode="file")
+gx_context_root = Path(__file__).resolve().parent / "gx"
+gx_context_root.mkdir(parents=True, exist_ok=True)
+context = gx.get_context(
+    mode="file",
+    context_root_dir=str(gx_context_root),
+)
 
 # Bersihkan sisa datasource lama jika ada
 for old_ds in ["silver_spark_data", "silver_in_memory_data"]:
@@ -105,23 +110,33 @@ datasource = context.data_sources.add_spark(
 logger.info("Membaca data Silver Parquet langsung dari S3 via Spark S3A...")
 df_menu = spark.read.parquet(f"{bucket_base}/menu_master/")
 df_outlet = spark.read.parquet(f"{bucket_base}/outlet_master/")
+df_customers = spark.read.parquet(f"{bucket_base}/customers/")
+df_employees = spark.read.parquet(f"{bucket_base}/employees/")
 
 orders_path = f"{bucket_base}/orders/year={year}/month={month}/day={day}/"
 order_items_path = f"{bucket_base}/order_items/year={year}/month={month}/day={day}/"
+payments_path = f"{bucket_base}/payments/year={year}/month={month}/day={day}/"
 df_orders = spark.read.parquet(orders_path)
 df_order_items = spark.read.parquet(order_items_path)
+df_payments = spark.read.parquet(payments_path)
 
 # Daftarkan ke GX sebagai Dataframe Asset
 menu_asset = datasource.add_dataframe_asset(name="menu_silver_asset")
 outlet_asset = datasource.add_dataframe_asset(name="outlet_silver_asset")
+customers_asset = datasource.add_dataframe_asset(name="customers_silver_asset")
+employees_asset = datasource.add_dataframe_asset(name="employees_silver_asset")
 orders_asset = datasource.add_dataframe_asset(name="orders_silver_asset")
 order_items_asset = datasource.add_dataframe_asset(name="order_items_silver_asset")
+payments_asset = datasource.add_dataframe_asset(name="payments_silver_asset")
 
 # Definisikan Batch
 menu_definition = menu_asset.add_batch_definition_whole_dataframe(name="menu_def")
 outlet_definition = outlet_asset.add_batch_definition_whole_dataframe(name="outlet_def")
+customers_definition = customers_asset.add_batch_definition_whole_dataframe(name="customers_def")
+employees_definition = employees_asset.add_batch_definition_whole_dataframe(name="employees_def")
 orders_definition = orders_asset.add_batch_definition_whole_dataframe(name="orders_def")
 order_items_definition = order_items_asset.add_batch_definition_whole_dataframe(name="order_items_def")
+payments_definition = payments_asset.add_batch_definition_whole_dataframe(name="payments_def")
 
 # Ambil Batch dengan menyertakan runtime dataframe yang dibaca lewat S3A tadi
 # ── 6. CREATE EXPECTATION SUITES ──────────────────────────────────────
@@ -144,9 +159,27 @@ outlet_suite = add_smoke_suite(
     ["outlet_id", "outlet_name", "city", "region_tier", "created_at", "updated_at"],
     ["outlet_id"],
 )
+customers_suite = add_smoke_suite(
+    "silver_customers_suite",
+    ["customer_id", "customer_name", "email", "phone", "created_at", "updated_at"],
+    ["customer_id"],
+)
+employees_suite = add_smoke_suite(
+    "silver_employees_suite",
+    [
+        "employee_id",
+        "employee_name",
+        "employee_role",
+        "outlet_id",
+        "employment_status",
+        "created_at",
+        "updated_at",
+    ],
+    ["employee_id", "outlet_id"],
+)
 orders_suite = add_smoke_suite(
     "silver_orders_suite",
-    ["order_id", "outlet_id", "cashier_id", "total_amount", "payment_method", "created_at", "data_quality_status"],
+    ["order_id", "customer_id", "outlet_id", "cashier_id", "total_amount", "payment_method", "order_status", "created_at", "data_quality_status"],
     ["order_id", "outlet_id", "created_at"],
 )
 order_items_suite = add_smoke_suite(
@@ -154,13 +187,29 @@ order_items_suite = add_smoke_suite(
     ["item_id", "order_id", "menu_id", "quantity", "price_per_item", "subtotal"],
     ["item_id", "order_id", "menu_id"],
 )
+payments_suite = add_smoke_suite(
+    "silver_payments_suite",
+    [
+        "payment_id",
+        "order_id",
+        "payment_method",
+        "payment_status",
+        "amount",
+        "paid_at",
+        "provider_reference",
+    ],
+    [],
+)
 
 # ── 7. VALIDATION DEFINITIONS & CHECKPOINT SETUP ──────────────────────
 definitions = [
     gx.ValidationDefinition(name="silver_menu_master_runtime_validation", suite=menu_suite, data=menu_definition),
     gx.ValidationDefinition(name="silver_outlet_master_runtime_validation", suite=outlet_suite, data=outlet_definition),
+    gx.ValidationDefinition(name="silver_customers_runtime_validation", suite=customers_suite, data=customers_definition),
+    gx.ValidationDefinition(name="silver_employees_runtime_validation", suite=employees_suite, data=employees_definition),
     gx.ValidationDefinition(name="silver_orders_runtime_validation", suite=orders_suite, data=orders_definition),
     gx.ValidationDefinition(name="silver_order_items_runtime_validation", suite=order_items_suite, data=order_items_definition),
+    gx.ValidationDefinition(name="silver_payments_runtime_validation", suite=payments_suite, data=payments_definition),
 ]
 for definition in definitions:
     context.validation_definitions.add_or_update(definition)
@@ -178,7 +227,15 @@ context.checkpoints.add_or_update(checkpoint)
 # ── 8. EXECUTE VALIDATIONS & BUILD DATA DOCS ──────────────────────────
 try:
     logger.info("Menjalankan Validasi Silver quality gate...")
-    dataframes = [df_menu, df_outlet, df_orders, df_order_items]
+    dataframes = [
+        df_menu,
+        df_outlet,
+        df_customers,
+        df_employees,
+        df_orders,
+        df_order_items,
+        df_payments,
+    ]
     with connect_to_gx_metadata_db() as metadata_connection:
         results = []
         for definition, dataframe in zip(definitions, dataframes):
@@ -249,6 +306,9 @@ try:
 
 except NoAvailableBatchesError as exc:
     raise RuntimeError("Required Silver batch is unavailable.") from exc
-
-context.build_data_docs()
-logger.info("Silver Data Docs successfully built/rebuilt!")
+finally:
+    try:
+        context.build_data_docs()
+        logger.info("Silver Data Docs successfully built/rebuilt!")
+    except Exception:
+        logger.exception("Failed to rebuild Silver Data Docs")

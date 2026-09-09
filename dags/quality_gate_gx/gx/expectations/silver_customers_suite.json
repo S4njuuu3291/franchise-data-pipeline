@@ -1,13 +1,13 @@
 {
   "expectations": [
     {
-      "id": "d410f8f5-6198-4fcf-a70a-32ddb8605899",
+      "id": "e24c34f1-7dc5-442a-8558-6021909be27c",
       "kwargs": {
         "column_set": [
-          "outlet_id",
-          "outlet_name",
-          "city",
-          "region_tier",
+          "customer_id",
+          "customer_name",
+          "email",
+          "phone",
           "created_at",
           "updated_at"
         ]
@@ -17,7 +17,7 @@
       "type": "expect_table_columns_to_match_set"
     },
     {
-      "id": "4f87fffc-c887-45db-b73a-589f4c1987a5",
+      "id": "218bcdc5-94cd-43dc-b44f-8f05cd8b6910",
       "kwargs": {
         "min_value": 1
       },
@@ -26,19 +26,19 @@
       "type": "expect_table_row_count_to_be_between"
     },
     {
-      "id": "b0720966-a0b9-464c-84da-e86f034f791c",
+      "id": "ed7ab150-8a5f-48a7-a6d8-f5d758d29046",
       "kwargs": {
-        "column": "outlet_id"
+        "column": "customer_id"
       },
       "meta": {},
       "severity": "critical",
       "type": "expect_column_values_to_not_be_null"
     }
   ],
-  "id": "28aa217e-9176-452b-a942-fa66ce63ea38",
+  "id": "6bec59ea-db4a-49b7-87a3-e4bd7d7b3d96",
   "meta": {
     "great_expectations_version": "1.18.1"
   },
-  "name": "silver_outlet_master_suite",
+  "name": "silver_customers_suite",
   "notes": null
 }

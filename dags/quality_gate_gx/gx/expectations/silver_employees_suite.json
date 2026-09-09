@@ -1,13 +1,14 @@
 {
   "expectations": [
     {
-      "id": "d410f8f5-6198-4fcf-a70a-32ddb8605899",
+      "id": "d9c88f7b-3187-47f6-9867-8c89fcfd9b02",
       "kwargs": {
         "column_set": [
+          "employee_id",
+          "employee_name",
+          "employee_role",
           "outlet_id",
-          "outlet_name",
-          "city",
-          "region_tier",
+          "employment_status",
           "created_at",
           "updated_at"
         ]
@@ -17,7 +18,7 @@
       "type": "expect_table_columns_to_match_set"
     },
     {
-      "id": "4f87fffc-c887-45db-b73a-589f4c1987a5",
+      "id": "e0224201-6054-4f80-822b-8a8f09896a4e",
       "kwargs": {
         "min_value": 1
       },
@@ -26,7 +27,16 @@
       "type": "expect_table_row_count_to_be_between"
     },
     {
-      "id": "b0720966-a0b9-464c-84da-e86f034f791c",
+      "id": "df680f51-52d1-4505-bcfb-715628447048",
+      "kwargs": {
+        "column": "employee_id"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "5ff8bad5-b3a1-473b-ae52-909a32a73f32",
       "kwargs": {
         "column": "outlet_id"
       },
@@ -35,10 +45,10 @@
       "type": "expect_column_values_to_not_be_null"
     }
   ],
-  "id": "28aa217e-9176-452b-a942-fa66ce63ea38",
+  "id": "5964da61-08e9-446f-b105-5a6499fdb751",
   "meta": {
     "great_expectations_version": "1.18.1"
   },
-  "name": "silver_outlet_master_suite",
+  "name": "silver_employees_suite",
   "notes": null
 }

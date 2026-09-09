@@ -1,0 +1,106 @@
+{
+  "expectations": [
+    {
+      "id": "37cc91ba-2424-4bef-82ab-c8a1d0119215",
+      "kwargs": {
+        "column_set": [
+          "employee_id",
+          "employee_name",
+          "employee_role",
+          "outlet_id",
+          "employment_status",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_columns_to_match_set"
+    },
+    {
+      "id": "fd5efe1d-1230-4ec0-8e8f-d2efb08d0b1d",
+      "kwargs": {
+        "column": "employee_id"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "6f4c3dc1-1590-492c-8903-6f914acac070",
+      "kwargs": {
+        "column": "employee_name"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "b03206e5-0d03-4deb-bd95-b009ac142656",
+      "kwargs": {
+        "column": "employee_role"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "8e5bb082-8a28-428f-8fc7-f39ae4ee7c5a",
+      "kwargs": {
+        "column": "outlet_id"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "05889683-d254-4c6d-a2ce-1704ab10fe05",
+      "kwargs": {
+        "column": "employment_status"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "23231385-d86c-4ba4-b8e8-1e86f6dc3006",
+      "kwargs": {
+        "column": "employee_id"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_be_unique"
+    },
+    {
+      "id": "59f7ce38-2555-482d-a3f4-41ffa2114f1d",
+      "kwargs": {
+        "column": "employee_role",
+        "value_set": [
+          "CASHIER",
+          "STAFF",
+          "MANAGER"
+        ]
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_be_in_set"
+    },
+    {
+      "id": "24967360-0df0-4dcf-8937-1dbda09eb109",
+      "kwargs": {
+        "min_value": 1
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_row_count_to_be_between"
+    }
+  ],
+  "id": "fe66b7a7-eb62-42fc-8496-ec413a3e3530",
+  "meta": {
+    "great_expectations_version": "1.18.1"
+  },
+  "name": "employees_suite",
+  "notes": null
+}

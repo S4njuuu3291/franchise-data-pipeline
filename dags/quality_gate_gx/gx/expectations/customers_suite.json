@@ -1,0 +1,89 @@
+{
+  "expectations": [
+    {
+      "id": "87bdbae7-bdb6-4bb1-a92a-17b7ec50f67f",
+      "kwargs": {
+        "column_set": [
+          "customer_id",
+          "customer_name",
+          "email",
+          "phone",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_columns_to_match_set"
+    },
+    {
+      "id": "25e1b42b-34c1-4a7b-9684-e656ebf8ef85",
+      "kwargs": {
+        "column": "customer_id"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "b9d30ff9-a579-441e-ae90-2badd1809833",
+      "kwargs": {
+        "column": "customer_name"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "59d221b7-7422-4f4e-bee3-227d3bd2d0ac",
+      "kwargs": {
+        "column": "email"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "35292422-9bb9-45e4-a82f-280ce88b8bfc",
+      "kwargs": {
+        "column": "phone"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "71b8f6a9-d5c3-4a7a-a154-cdbb4e5ad015",
+      "kwargs": {
+        "column": "customer_id"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_be_unique"
+    },
+    {
+      "id": "7c339f1d-02fe-48c3-a7e0-68b335c3d740",
+      "kwargs": {
+        "column": "email"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_be_unique"
+    },
+    {
+      "id": "5352d136-c9ff-4e75-b914-00f5318f8a8d",
+      "kwargs": {
+        "min_value": 1
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_row_count_to_be_between"
+    }
+  ],
+  "id": "68af76ea-2047-4ba6-8f45-92d23a8f248b",
+  "meta": {
+    "great_expectations_version": "1.18.1"
+  },
+  "name": "customers_suite",
+  "notes": null
+}

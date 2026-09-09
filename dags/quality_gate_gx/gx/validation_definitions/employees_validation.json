@@ -1,0 +1,22 @@
+{
+  "data": {
+    "asset": {
+      "id": "d2c268ce-7ace-4a2f-a122-eb729741fbdf",
+      "name": "employees_asset"
+    },
+    "batch_definition": {
+      "id": "c3e61d4c-b859-4d76-be57-f086505df1a3",
+      "name": "daily_employees_definition"
+    },
+    "datasource": {
+      "id": "1337ecc7-cda6-4c6d-bb2c-7d91570685e8",
+      "name": "bronze_data"
+    }
+  },
+  "id": "bfc64d97-06f2-406c-8ddd-4a0432eff4ff",
+  "name": "employees_validation",
+  "suite": {
+    "id": "fe66b7a7-eb62-42fc-8496-ec413a3e3530",
+    "name": "employees_suite"
+  }
+}

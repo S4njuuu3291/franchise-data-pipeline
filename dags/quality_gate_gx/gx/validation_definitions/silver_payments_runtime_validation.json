@@ -1,0 +1,22 @@
+{
+  "data": {
+    "asset": {
+      "id": "f0a407ad-a60d-4f22-a2a3-f9b24689f5df",
+      "name": "payments_silver_asset"
+    },
+    "batch_definition": {
+      "id": "e2839e63-11bc-4840-b667-d5ebac448bce",
+      "name": "payments_def"
+    },
+    "datasource": {
+      "id": "c5a50ac1-377a-441f-b9e8-440dc600e547",
+      "name": "silver_in_memory_data"
+    }
+  },
+  "id": "9b908d2c-d9b4-478f-b233-73b7c6f5b849",
+  "name": "silver_payments_runtime_validation",
+  "suite": {
+    "id": "91c2cde5-c751-4b7a-abb6-b262e70454a3",
+    "name": "silver_payments_suite"
+  }
+}

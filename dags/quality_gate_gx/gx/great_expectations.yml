@@ -90,14 +90,14 @@ data_docs_sites:
 fluent_datasources:
   bronze_data:
     type: pandas_s3
-    id: 3954ebb1-24f3-4bd9-b332-8b960daab7bb
+    id: 1337ecc7-cda6-4c6d-bb2c-7d91570685e8
     assets:
       menu_master_asset:
         type: csv
-        id: 7970c6d9-e2ae-4606-8443-15e5d09a5f38
+        id: 0cec2400-d71d-442c-9eba-57cad4ee5418
         batch_definitions:
           daily_menu_definition:
-            id: 08475580-a5c3-4343-b84f-5ba782579756
+            id: fcc88f59-24c8-4fa4-8fc4-9147e64ffcd5
             partitioner:
               regex: .*\.csv$
               param_names: []
@@ -105,74 +105,131 @@ fluent_datasources:
           s3_prefix: menu_master/
       outlet_master_asset:
         type: csv
-        id: 3d1b15e7-7646-4309-bce1-936e395ed93a
+        id: de9ca9f2-853d-4373-b96c-fe02e2b27e19
         batch_definitions:
           daily_outlet_definition:
-            id: 00c1f62b-e274-45d2-a575-fe38dbb6bd5b
+            id: f6111770-2cf3-4002-bd6a-b812b2686f1d
             partitioner:
               regex: .*\.csv$
               param_names: []
         connect_options:
           s3_prefix: outlet_master/
+      customers_asset:
+        type: csv
+        id: 02b42329-5175-4212-a4fb-c1da790f9963
+        batch_definitions:
+          daily_customers_definition:
+            id: 766e6797-ba29-472d-9529-212667178d28
+            partitioner:
+              regex: .*\.csv$
+              param_names: []
+        connect_options:
+          s3_prefix: customers/
+      employees_asset:
+        type: csv
+        id: d2c268ce-7ace-4a2f-a122-eb729741fbdf
+        batch_definitions:
+          daily_employees_definition:
+            id: c3e61d4c-b859-4d76-be57-f086505df1a3
+            partitioner:
+              regex: .*\.csv$
+              param_names: []
+        connect_options:
+          s3_prefix: employees/
       orders_asset:
         type: csv
-        id: 0a69ad9e-9a8d-43b2-a9a9-415437cef989
+        id: cfce88ba-e3ac-4bd1-aa31-237def02478e
         batch_definitions:
           daily_orders_definition:
-            id: 810ce81f-e015-496e-996a-71b3712d2166
+            id: f75be4ba-14bb-422c-a4bc-8763ee477cc4
             partitioner:
               regex: orders.csv$
               param_names: []
         connect_options:
-          s3_prefix: orders/year=2026/month=09/day=06/
+          s3_prefix: orders/year=2026/month=09/day=09/
       order_items_asset:
         type: csv
-        id: 79703309-b9ee-4b8e-b678-989d92ec6097
+        id: ac2afa34-65a1-4d91-8474-bcd74460356a
         batch_definitions:
           daily_order_items_definition:
-            id: e31c1694-554c-4876-a21d-2102a0d33e26
+            id: 4a4c19d6-2024-43c9-b03e-53ef70d32c05
             partitioner:
               regex: order_items.csv$
               param_names: []
         connect_options:
-          s3_prefix: order_items/year=2026/month=09/day=06/
+          s3_prefix: order_items/year=2026/month=09/day=09/
+      payments_asset:
+        type: csv
+        id: fcd26223-951e-4bee-82f0-4bdf6ec493a2
+        batch_definitions:
+          daily_payments_definition:
+            id: 64d77be1-0762-450a-b7b7-e8a5dc48614f
+            partitioner:
+              regex: payments.csv$
+              param_names: []
+        connect_options:
+          s3_prefix: payments/year=2026/month=09/day=09/
     bucket: franchise-pipeline-dev-data-lake-bronze
   silver_in_memory_data:
     type: spark
-    id: d38f5470-7f4b-4aec-9b93-a83c0707fc79
+    id: c5a50ac1-377a-441f-b9e8-440dc600e547
     assets:
       menu_silver_asset:
         type: dataframe
-        id: 3df38f34-a8a0-423f-b397-97888ca24fae
+        id: 433ed1b0-52b9-49a6-aa2c-35256d193987
         batch_metadata: {}
         batch_definitions:
           menu_def:
-            id: 4bf31bb1-f9f2-47d0-bb75-ce53ecd3e859
+            id: 412b4bda-b432-4fc3-8b03-89d2e0b2ed50
             partitioner:
       outlet_silver_asset:
         type: dataframe
-        id: f11d4020-a83e-4fdd-9b6c-1f65684da668
+        id: 739ab72b-36dd-47eb-8483-859801847816
         batch_metadata: {}
         batch_definitions:
           outlet_def:
-            id: 2827786e-978b-491b-8827-66679943b11c
+            id: eb5aed8e-d11e-4868-a623-0be948609c48
+            partitioner:
+      customers_silver_asset:
+        type: dataframe
+        id: e24dce68-0cee-4ff1-b2d3-f9aed2826d58
+        batch_metadata: {}
+        batch_definitions:
+          customers_def:
+            id: c6d9bfcf-b0c4-41bc-93be-09db6186ef19
+            partitioner:
+      employees_silver_asset:
+        type: dataframe
+        id: 4017b708-1eb5-4f3a-9511-0d6e4bbb7486
+        batch_metadata: {}
+        batch_definitions:
+          employees_def:
+            id: 0db21502-29b1-481d-8fa9-69bad6e874c7
             partitioner:
       orders_silver_asset:
         type: dataframe
-        id: 3aa72bce-2e06-429e-97bd-f2692fcf591c
+        id: 5ec75960-4fe1-4444-80ce-9e385db96257
         batch_metadata: {}
         batch_definitions:
           orders_def:
-            id: 88f4d8f4-a9f5-4b35-8548-26f54c542f2d
+            id: 99b64180-9279-43a5-819b-ee9a3fdccaff
             partitioner:
       order_items_silver_asset:
         type: dataframe
-        id: caa82fe5-9b45-4b57-a94a-0a1f8451b0f4
+        id: 212b358a-bdc0-404b-919d-a86ef14694d7
         batch_metadata: {}
         batch_definitions:
           order_items_def:
-            id: 80b6c51c-0465-4a4d-913d-ec5553f2ea36
+            id: afc00970-1f17-477f-a739-6afb0371c6d6
+            partitioner:
+      payments_silver_asset:
+        type: dataframe
+        id: f0a407ad-a60d-4f22-a2a3-f9b24689f5df
+        batch_metadata: {}
+        batch_definitions:
+          payments_def:
+            id: e2839e63-11bc-4840-b667-d5ebac448bce
             partitioner:
     force_reuse_spark_context: true
 analytics_enabled:
-data_context_id: 2e13c7eb-02c2-4c96-ac13-51b8c5c70bb7
+data_context_id: 7c023cf0-6910-42bf-8263-a6a46caeecfb

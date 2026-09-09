@@ -44,7 +44,12 @@ def connect_to_gx_metadata_db():
     )
 
 
-context = gx.get_context(mode="file")
+gx_context_root = Path(__file__).resolve().parent / "gx"
+gx_context_root.mkdir(parents=True, exist_ok=True)
+context = gx.get_context(
+    mode="file",
+    context_root_dir=str(gx_context_root),
+)
 site_name = "quality_gate_site"
 
 try:
@@ -52,6 +57,7 @@ try:
         "master_data_checkpoint": context.checkpoints.get("master_data_checkpoint"),
         "transaction_data_checkpoint": context.checkpoints.get("transaction_data_checkpoint"),
     }
+    failed_checkpoints = []
 
     with connect_to_gx_metadata_db() as metadata_connection:
 
@@ -133,20 +139,35 @@ try:
                 )
 
             if not checkpoint_result.success:
-                raise RuntimeError(
-                    f"GX checkpoint failed: {checkpoint_name}. "
-                    "See Data Docs for details."
+                failed_checkpoints.append(checkpoint_name)
+                logger.error(
+                    "Checkpoint failed: %s; metadata will be committed before "
+                    "the job exits.",
+                    checkpoint_name,
                 )
-
-            logger.info("Checkpoint passed: %s", checkpoint_name)
+            else:
+                logger.info("Checkpoint passed: %s", checkpoint_name)
 
         metadata_connection.commit()
+
+        if failed_checkpoints:
+            raise RuntimeError(
+                "GX checkpoint failed: "
+                + ", ".join(failed_checkpoints)
+                + ". See Data Docs for details."
+            )
 
 except NoAvailableBatchesError as exc:
     raise RuntimeError(
         "Required Bronze batch is unavailable; stopping pipeline. "
         "Check the configured S3 paths and extracted data."
     ) from exc
-
-context.build_data_docs(site_names=site_name)
-logger.info("Data Docs rebuilt: %s", site_name)
+finally:
+    # Build Data Docs even when a checkpoint fails, so the latest validation
+    # result remains available for diagnosis. Do not mask the original error
+    # if Data Docs generation itself fails.
+    try:
+        context.build_data_docs(site_names=site_name)
+        logger.info("Data Docs rebuilt: %s", site_name)
+    except Exception:
+        logger.exception("Failed to rebuild Data Docs: %s", site_name)
