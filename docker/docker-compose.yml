@@ -29,6 +29,10 @@ x-airflow-common:
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
     AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
     AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    AWS_PROFILE: ${AWS_PROFILE:-default}
+    AWS_SDK_LOAD_CONFIG: "1"
+    AWS_CONFIG_FILE: /opt/airflow/.aws/config
+    AWS_SHARED_CREDENTIALS_FILE: /opt/airflow/.aws/credentials
     AWS_DEFAULT_REGION: "ap-southeast-1"
     AIRFLOW_CONN_AWS_DEFAULT: 'aws://${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}@/?region_name=ap-southeast-1'
     CONNECTION_CHECK_MAX_COUNT: "0"
@@ -43,7 +47,7 @@ x-airflow-common:
   secrets:
     - airflow_reader_password
     - gx_metadata_password
-  user: "${AIRFLOW_UID:-50000}:0"
+  user: "${AIRFLOW_UID:-1000}:0"
   depends_on:
     &airflow-common-depends-on
     redis:
@@ -52,6 +56,29 @@ x-airflow-common:
       condition: service_healthy
 
 services:
+  # ==========================================================
+  # GLUE LOCAL : MENJALANKAN AWS GLUE LIBRARIES + PYSPARK LOKAL
+  # ==========================================================
+  glue:
+    image: public.ecr.aws/glue/aws-glue-libs:5
+    profiles:
+      - glue
+    # Local-only development container: needed to read host ~/.aws files
+    # whose permissions are commonly 0600 and owned by the host user.
+    user: "0:0"
+    working_dir: /home/hadoop/workspace
+    volumes:
+      - ${AIRFLOW_PROJ_DIR:-..}:/home/hadoop/workspace
+      - ${HOME}/.aws:/home/hadoop/.aws:ro
+    environment:
+      AWS_PROFILE: ${AWS_PROFILE:-default}
+      AWS_SDK_LOAD_CONFIG: "1"
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-ap-southeast-1}
+      AWS_CONFIG_FILE: /home/hadoop/.aws/config
+      AWS_SHARED_CREDENTIALS_FILE: /home/hadoop/.aws/credentials
+    stdin_open: true
+    tty: true
+
   # ==========================================================
   # POSTGRES-PRIMARY : DATABASE UTAMA DAN SUMBER REPLIKASI
   # ==========================================================

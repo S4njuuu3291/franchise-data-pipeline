@@ -115,4 +115,6 @@ with DAG(
     end_pipeline = EmptyOperator(task_id="end_pipeline")
 
     # hello_task >> start_pipeline >> dbt_transform_gold >> end_pipeline
-    start_pipeline >> setup_gx_task >> extract_task >> bronze_quality_gate_task >> transform_task >> silver_quality_gate_task >> dbt_transform_gold >> end_pipeline
+    # GX setup creates date-partitioned S3 assets, so extraction must run first
+    # to ensure the requested partition exists when GX validates the assets.
+    start_pipeline >> extract_task >> setup_gx_task >> bronze_quality_gate_task >> transform_task >> silver_quality_gate_task >> dbt_transform_gold >> end_pipeline
