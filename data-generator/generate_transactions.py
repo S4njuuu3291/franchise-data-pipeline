@@ -5,8 +5,17 @@ import os
 from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import execute_values
+from psycopg2 import sql
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_SCHEMA = os.getenv("DB_SCHEMA", "public")
+
+if DB_SCHEMA not in {"public", "dev"}:
+    raise ValueError("DB_SCHEMA hanya boleh bernilai 'public' atau 'dev'")
+
+def normalize_tier(value):
+    """Normalize database tier labels to the internal tier key format."""
+    return value.strip().lower().replace(" ", "_")
 
 
 def get_secret_or_env(env_name, secret_path):
@@ -52,8 +61,10 @@ HOURLY_TRAFFIC_WEIGHTS = {
     21: 8    # 21.00 - 22.00 (Menuju Closing)
 }
 
-PAYMENT_METHODS = ["QRIS", "GoPay", "OVO", "Debit Card", "Credit Card", "Cash"]
-PAYMENT_WEIGHTS = [40, 20, 15, 12, 8, 5] # Mayoritas cashless sesuai realitas urban
+PAYMENT_METHODS = ["QRIS", "E_WALLET", "DEBIT_CARD", "CREDIT_CARD", "CASH"]
+PAYMENT_WEIGHTS = [40, 20, 15, 12, 13] # Mayoritas cashless sesuai realitas urban
+ORDER_STATUSES = ["PENDING", "COMPLETED", "CANCELLED", "REFUNDED"]
+ORDER_STATUS_WEIGHTS = [5, 88, 4, 3]
 
 def get_db_connection():
     return psycopg2.connect(
@@ -76,20 +87,39 @@ def get_db_connection():
 def fetch_master_data(cursor):
     """Mengambil data master dari DB untuk disimpan di memori Python (Caching)"""
     # Load Outlets
-    cursor.execute("SELECT outlet_id, region_tier FROM outlet_master;")
-    outlets = [{"id": row[0], "tier": row[1]} for row in cursor.fetchall()]
+    cursor.execute(sql.SQL("SELECT outlet_id, region_tier FROM {};").format(
+        sql.Identifier(DB_SCHEMA, "outlet_master")
+    ))
+    outlets = [{
+        "id": row[0],
+        "tier": normalize_tier(row[1])
+    } for row in cursor.fetchall()]
     
     # Load Menus
-    cursor.execute("SELECT menu_id, category, price_tier_1, price_tier_2, price_tier_3 FROM menu_master;")
+    cursor.execute(sql.SQL("SELECT menu_id, category, price_tier_1, price_tier_2, price_tier_3 FROM {};").format(
+        sql.Identifier(DB_SCHEMA, "menu_master")
+    ))
     menus = [{
         "id": row[0], 
         "category": row[1],
-        "Tier 1": float(row[2]),
-        "Tier 2": float(row[3]),
-        "Tier 3": float(row[4])
+        "tier_1": float(row[2]),
+        "tier_2": float(row[3]),
+        "tier_3": float(row[4])
     } for row in cursor.fetchall()]
     
-    return outlets, menus
+    cursor.execute(sql.SQL("SELECT employee_id, outlet_id FROM {} WHERE employee_role = 'CASHIER' AND employment_status = 'ACTIVE';").format(
+        sql.Identifier(DB_SCHEMA, "employees")
+    ))
+    employees_by_outlet = {}
+    for employee_id, outlet_id in cursor.fetchall():
+        employees_by_outlet.setdefault(outlet_id, []).append(employee_id)
+
+    cursor.execute(sql.SQL("SELECT customer_id FROM {};").format(
+        sql.Identifier(DB_SCHEMA, "customers")
+    ))
+    customer_ids = [row[0] for row in cursor.fetchall()]
+
+    return outlets, menus, employees_by_outlet, customer_ids
 
 def generate_daily_data(target_date_str):
     target_date = datetime.strptime(target_date_str, "%Y-%m-%d").date()
@@ -98,22 +128,32 @@ def generate_daily_data(target_date_str):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    outlets, menus = fetch_master_data(cursor)
-    if not outlets or not menus:
-        print("CRITICAL: Data master kosong. Jalankan seed_master.py terlebih dahulu!")
+    outlets, menus, employees_by_outlet, customer_ids = fetch_master_data(cursor)
+    if not outlets or not menus or not employees_by_outlet or not customer_ids:
+        print("CRITICAL: Data master belum lengkap. Jalankan seed-master.py terlebih dahulu!")
         return
 
     # Ambil last order_id untuk kelanjutan sequence transaksi agar tidak tabrakan PK
-    cursor.execute("SELECT COALESCE(MAX(order_id), 0) FROM orders;")
+    cursor.execute(sql.SQL("SELECT COALESCE(MAX(order_id), 0) FROM {};").format(
+        sql.Identifier(DB_SCHEMA, "orders")
+    ))
     current_order_id = cursor.fetchone()[0] if cursor.description else 0
     if current_order_id is None: current_order_id = 0
     
-    cursor.execute("SELECT COALESCE(MAX(item_id), 0) FROM order_items;")
+    cursor.execute(sql.SQL("SELECT COALESCE(MAX(item_id), 0) FROM {};").format(
+        sql.Identifier(DB_SCHEMA, "order_items")
+    ))
     current_item_id = cursor.fetchone()[0] if cursor.description else 0
     if current_item_id is None: current_item_id = 0
 
+    cursor.execute(sql.SQL("SELECT COALESCE(MAX(payment_id), 0) FROM {};").format(
+        sql.Identifier(DB_SCHEMA, "payments")
+    ))
+    current_payment_id = cursor.fetchone()[0] or 0
+
     orders_buffer = []
     items_buffer = []
+    payments_buffer = []
     
     # --- ANOMALI 2: Tentukan 1 Outlet acak untuk terkena DATA SKEW (Spike 5x lipat) ---
     skewed_outlet_id = random.choice(outlets)["id"]
@@ -155,8 +195,15 @@ def generate_daily_data(target_date_str):
                 days_lag = random.choice([1, 2])
                 tx_timestamp = tx_timestamp - timedelta(days=days_lag)
                 
-            cashier_id = random.randint(101, 108) # Simulasi 8 kasir bergantian per outlet
+            cashier_candidates = employees_by_outlet.get(outlet["id"], [])
+            if not cashier_candidates:
+                raise ValueError(
+                    f"Tidak ada cashier aktif untuk outlet_id={outlet['id']}"
+                )
+            cashier_id = random.choice(cashier_candidates)
+            customer_id = random.choice(customer_ids) if random.random() >= 0.15 else None
             payment_method = random.choices(PAYMENT_METHODS, weights=PAYMENT_WEIGHTS, k=1)[0]
+            order_status = random.choices(ORDER_STATUSES, weights=ORDER_STATUS_WEIGHTS, k=1)[0]
             
             # Tentukan berapa banyak variasi item dalam 1 struk belanja (1 s.d 4 menu)
             item_loop_count = random.randint(1, 4)
@@ -201,11 +248,30 @@ def generate_daily_data(target_date_str):
                 
             orders_buffer.append((
                 current_order_id,
+                customer_id,
                 outlet["id"],
                 cashier_id,
                 final_total_amount,
                 payment_method,
+                order_status,
                 tx_timestamp
+            ))
+
+            current_payment_id += 1
+            payment_status = {
+                "COMPLETED": "SUCCESS",
+                "PENDING": "PENDING",
+                "CANCELLED": "FAILED",
+                "REFUNDED": "REFUNDED",
+            }[order_status]
+            payments_buffer.append((
+                current_payment_id,
+                current_order_id,
+                payment_method,
+                payment_status,
+                final_total_amount,
+                tx_timestamp,
+                None if payment_method == "CASH" else f"{payment_method}-{current_order_id}",
             ))
 
     # =========================================================================
@@ -213,20 +279,25 @@ def generate_daily_data(target_date_str):
     # =========================================================================
     print(f"-> Memulai injeksi ke Postgres ({len(orders_buffer)} orders, {len(items_buffer)} items)...")
     try:
-        query_orders = """
-            INSERT INTO orders (order_id, outlet_id, cashier_id, total_amount, payment_method, created_at)
+        query_orders = sql.SQL("""
+            INSERT INTO {} (order_id, customer_id, outlet_id, cashier_id, total_amount, payment_method, order_status, created_at)
             VALUES %s ON CONFLICT (order_id) DO NOTHING;
-        """
-        query_items = """
-            INSERT INTO order_items (item_id, order_id, menu_id, quantity, price_per_item, subtotal)
+        """).format(sql.Identifier(DB_SCHEMA, "orders"))
+        query_items = sql.SQL("""
+            INSERT INTO {} (item_id, order_id, menu_id, quantity, price_per_item, subtotal)
             VALUES %s ON CONFLICT (item_id) DO NOTHING;
-        """
+        """).format(sql.Identifier(DB_SCHEMA, "order_items"))
+        query_payments = sql.SQL("""
+            INSERT INTO {} (payment_id, order_id, payment_method, payment_status, amount, paid_at, provider_reference)
+            VALUES %s ON CONFLICT (payment_id) DO NOTHING;
+        """).format(sql.Identifier(DB_SCHEMA, "payments"))
         
         execute_values(cursor, query_orders, orders_buffer)
         execute_values(cursor, query_items, items_buffer)
+        execute_values(cursor, query_payments, payments_buffer)
         conn.commit()
         
-        print(f"SUCCESS: [{target_date_str}] Tanam {len(orders_buffer)} Struk & {len(items_buffer)} Item Baris Selesai.")
+        print(f"SUCCESS: [{target_date_str}] Tanam {len(orders_buffer)} orders, {len(items_buffer)} items, dan {len(payments_buffer)} payments.")
         print(f"INFO: Outlet ID {skewed_outlet_id} mengalami lonjakan (Skew Spike) hari ini.\n")
         
     except Exception as e:

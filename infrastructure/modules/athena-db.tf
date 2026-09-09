@@ -4,13 +4,13 @@ locals {
 
 # Athena Database
 resource "aws_athena_database" "franchise" {
-    name = "${local.db_prefix}_athena_db"
-    bucket = aws_s3_bucket.athena_results.bucket
+  name   = "${local.db_prefix}_athena_db"
+  bucket = aws_s3_bucket.athena_results.bucket
 }
 
 # Athena WorkGroup
 resource "aws_athena_workgroup" "franchise" {
-  name = "${local.db_prefix}_workgroup"
+  name          = "${local.db_prefix}_workgroup"
   force_destroy = true
 
   configuration {
@@ -140,18 +140,18 @@ resource "aws_glue_catalog_table" "orders" {
   table_type = "EXTERNAL_TABLE"
 
   parameters = {
-    EXTERNAL       = "TRUE"
-    classification = "parquet"
-    "projection.enabled"           = "true"
-    "projection.year.type"         = "integer"
-    "projection.year.range"        = "2026,2027"
-    "projection.month.type"        = "integer"
-    "projection.month.range"       = "1,12"
-    "projection.month.digits"      = "2"
-    "projection.day.type"          = "integer"
-    "projection.day.range"         = "1,31"
-    "projection.day.digits"        = "2"
-    "partition_filtering.enabled"  = "true"
+    EXTERNAL                      = "TRUE"
+    classification                = "parquet"
+    "projection.enabled"          = "true"
+    "projection.year.type"        = "integer"
+    "projection.year.range"       = "2026,2027"
+    "projection.month.type"       = "integer"
+    "projection.month.range"      = "1,12"
+    "projection.month.digits"     = "2"
+    "projection.day.type"         = "integer"
+    "projection.day.range"        = "1,31"
+    "projection.day.digits"       = "2"
+    "partition_filtering.enabled" = "true"
   }
 
   storage_descriptor {
@@ -169,6 +169,10 @@ resource "aws_glue_catalog_table" "orders" {
       type = "int"
     }
     columns {
+      name = "customer_id"
+      type = "int"
+    }
+    columns {
       name = "outlet_id"
       type = "int"
     }
@@ -182,6 +186,10 @@ resource "aws_glue_catalog_table" "orders" {
     }
     columns {
       name = "payment_method"
+      type = "string"
+    }
+    columns {
+      name = "order_status"
       type = "string"
     }
     columns {
@@ -216,18 +224,18 @@ resource "aws_glue_catalog_table" "order_items" {
   table_type = "EXTERNAL_TABLE"
 
   parameters = {
-    EXTERNAL       = "TRUE"
-    classification = "parquet"
-    "projection.enabled"           = "true"
-    "projection.year.type"         = "integer"
-    "projection.year.range"        = "2026,2027"
-    "projection.month.type"        = "integer"
-    "projection.month.range"       = "1,12"
-    "projection.month.digits"      = "2"
-    "projection.day.type"          = "integer"
-    "projection.day.range"         = "1,31"
-    "projection.day.digits"        = "2"
-    "partition_filtering.enabled"  = "true"
+    EXTERNAL                      = "TRUE"
+    classification                = "parquet"
+    "projection.enabled"          = "true"
+    "projection.year.type"        = "integer"
+    "projection.year.range"       = "2026,2027"
+    "projection.month.type"       = "integer"
+    "projection.month.range"      = "1,12"
+    "projection.month.digits"     = "2"
+    "projection.day.type"         = "integer"
+    "projection.day.range"        = "1,31"
+    "projection.day.digits"       = "2"
+    "partition_filtering.enabled" = "true"
   }
 
   storage_descriptor {
@@ -280,3 +288,180 @@ resource "aws_glue_catalog_table" "order_items" {
   }
 }
 
+# Glue Catalog Table: customers
+resource "aws_glue_catalog_table" "customers" {
+  name          = "customers"
+  database_name = aws_athena_database.franchise.name
+
+  table_type = "EXTERNAL_TABLE"
+
+  parameters = {
+    EXTERNAL       = "TRUE"
+    classification = "parquet"
+  }
+
+  storage_descriptor {
+    location      = "s3://${aws_s3_bucket.data_lake_silver.bucket}/customers/"
+    input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+
+    ser_de_info {
+      name                  = "ParquetHiveSerDe"
+      serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+    }
+
+    columns {
+      name = "customer_id"
+      type = "int"
+    }
+    columns {
+      name = "customer_name"
+      type = "string"
+    }
+    columns {
+      name = "email"
+      type = "string"
+    }
+    columns {
+      name = "phone"
+      type = "string"
+    }
+    columns {
+      name = "created_at"
+      type = "timestamp"
+    }
+    columns {
+      name = "updated_at"
+      type = "timestamp"
+    }
+  }
+}
+
+# Glue Catalog Table: employees
+resource "aws_glue_catalog_table" "employees" {
+  name          = "employees"
+  database_name = aws_athena_database.franchise.name
+
+  table_type = "EXTERNAL_TABLE"
+
+  parameters = {
+    EXTERNAL       = "TRUE"
+    classification = "parquet"
+  }
+
+  storage_descriptor {
+    location      = "s3://${aws_s3_bucket.data_lake_silver.bucket}/employees/"
+    input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+
+    ser_de_info {
+      name                  = "ParquetHiveSerDe"
+      serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+    }
+
+    columns {
+      name = "employee_id"
+      type = "int"
+    }
+    columns {
+      name = "employee_name"
+      type = "string"
+    }
+    columns {
+      name = "employee_role"
+      type = "string"
+    }
+    columns {
+      name = "outlet_id"
+      type = "int"
+    }
+    columns {
+      name = "employment_status"
+      type = "string"
+    }
+    columns {
+      name = "created_at"
+      type = "timestamp"
+    }
+    columns {
+      name = "updated_at"
+      type = "timestamp"
+    }
+  }
+}
+
+# Glue Catalog Table: payments
+resource "aws_glue_catalog_table" "payments" {
+  name          = "payments"
+  database_name = aws_athena_database.franchise.name
+
+  table_type = "EXTERNAL_TABLE"
+
+  parameters = {
+    EXTERNAL                      = "TRUE"
+    classification                = "parquet"
+    "projection.enabled"          = "true"
+    "projection.year.type"        = "integer"
+    "projection.year.range"       = "2026,2027"
+    "projection.month.type"       = "integer"
+    "projection.month.range"      = "1,12"
+    "projection.month.digits"     = "2"
+    "projection.day.type"         = "integer"
+    "projection.day.range"        = "1,31"
+    "projection.day.digits"       = "2"
+    "partition_filtering.enabled" = "true"
+  }
+
+  storage_descriptor {
+    location      = "s3://${aws_s3_bucket.data_lake_silver.bucket}/payments/"
+    input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+
+    ser_de_info {
+      name                  = "ParquetHiveSerDe"
+      serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+    }
+
+    columns {
+      name = "payment_id"
+      type = "int"
+    }
+    columns {
+      name = "order_id"
+      type = "int"
+    }
+    columns {
+      name = "payment_method"
+      type = "string"
+    }
+    columns {
+      name = "payment_status"
+      type = "string"
+    }
+    columns {
+      name = "amount"
+      type = "double"
+    }
+    columns {
+      name = "paid_at"
+      type = "timestamp"
+    }
+    columns {
+      name = "provider_reference"
+      type = "string"
+    }
+  }
+
+  partition_keys {
+    name = "year"
+    type = "string"
+  }
+  partition_keys {
+    name = "month"
+    type = "string"
+  }
+  partition_keys {
+    name = "day"
+    type = "string"
+  }
+}

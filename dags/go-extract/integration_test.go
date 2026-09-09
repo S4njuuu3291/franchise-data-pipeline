@@ -68,9 +68,9 @@ func TestIntegration_QueryColumnCount(t *testing.T) {
 		},
 		{
 			name:     "orders incremental",
-			query:    "SELECT order_id, outlet_id, cashier_id, CAST(total_amount AS VARCHAR), payment_method, CAST(created_at AS VARCHAR) FROM orders WHERE created_at::date = $1 LIMIT 1",
+			query:    "SELECT order_id, customer_id, outlet_id, cashier_id, CAST(total_amount AS VARCHAR), payment_method, order_status, CAST(created_at AS VARCHAR) FROM orders WHERE created_at::date = $1 LIMIT 1",
 			args:     []interface{}{"2026-03-02"},
-			wantCols: 6,
+			wantCols: 8,
 		},
 		{
 			name: "order_items incremental via join",
@@ -85,6 +85,27 @@ func TestIntegration_QueryColumnCount(t *testing.T) {
 			name:     "outlet_master",
 			query:    "SELECT outlet_id, outlet_name, city, region_tier, CAST(created_at AS VARCHAR), CAST(updated_at AS VARCHAR) FROM outlet_master LIMIT 1",
 			wantCols: 6,
+		},
+		{
+			name: "customers",
+			query: "SELECT customer_id, customer_name, email, phone, " +
+				"CAST(created_at AS VARCHAR), CAST(updated_at AS VARCHAR) FROM customers LIMIT 1",
+			wantCols: 6,
+		},
+		{
+			name: "employees",
+			query: "SELECT employee_id, employee_name, employee_role, outlet_id, employment_status, " +
+				"CAST(created_at AS VARCHAR), CAST(updated_at AS VARCHAR) FROM employees LIMIT 1",
+			wantCols: 7,
+		},
+		{
+			name: "payments incremental",
+			query: "SELECT p.payment_id, p.order_id, p.payment_method, p.payment_status, " +
+				"CAST(p.amount AS VARCHAR), CAST(p.paid_at AS VARCHAR), p.provider_reference " +
+				"FROM payments p JOIN orders o ON p.order_id = o.order_id " +
+				"WHERE o.created_at::date = $1 LIMIT 1",
+			args:     []interface{}{"2026-03-02"},
+			wantCols: 7,
 		},
 	}
 
@@ -115,7 +136,7 @@ func TestIntegration_DBHasData(t *testing.T) {
 	}
 	defer pool.Close()
 
-	tables := []string{"menu_master", "outlet_master", "orders", "order_items"}
+	tables := []string{"menu_master", "outlet_master", "customers", "employees", "orders", "order_items", "payments"}
 	for _, table := range tables {
 		t.Run(fmt.Sprintf("table_%s_has_rows", table), func(t *testing.T) {
 			var count int

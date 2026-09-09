@@ -1,0 +1,175 @@
+{
+  "expectations": [
+    {
+      "id": "164a04d1-b239-4a63-bc99-11affc925401",
+      "kwargs": {
+        "column_set": [
+          "payment_id",
+          "order_id",
+          "payment_method",
+          "payment_status",
+          "amount",
+          "paid_at",
+          "provider_reference"
+        ]
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_table_columns_to_match_set"
+    },
+    {
+      "id": "2f3bf8ae-8fe3-4041-8cf9-a99d1e0991d4",
+      "kwargs": {
+        "column": "payment_id"
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "40d8a1dd-3fde-4b43-9037-4e1ba11e6384",
+      "kwargs": {
+        "column": "order_id"
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "b952d502-f229-4f18-96f9-43e22a305442",
+      "kwargs": {
+        "column": "payment_method"
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "6b02f24c-93a9-4805-8bb5-7675364ba4de",
+      "kwargs": {
+        "column": "payment_status"
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "d7cccd0c-7a63-462a-a60d-a527c8722c25",
+      "kwargs": {
+        "column": "amount"
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "a50c572b-f634-42f9-b0b3-6f5d0f5a3d8b",
+      "kwargs": {
+        "column": "paid_at"
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "49c11d15-03f5-4a09-9231-c6625198c0c3",
+      "kwargs": {
+        "column": "provider_reference"
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "e1f4551b-1cec-442f-af71-960c557d5ec8",
+      "kwargs": {
+        "column": "payment_id"
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_be_unique"
+    },
+    {
+      "id": "0874e407-a800-4cb3-9360-cba9520b9002",
+      "kwargs": {
+        "column": "payment_status",
+        "value_set": [
+          "REFUNDED",
+          "SUCCESS",
+          "FAILED",
+          "PENDING"
+        ]
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_be_in_set"
+    },
+    {
+      "id": "cc0f982b-d6f0-40f6-bfbe-0ef7e95005d6",
+      "kwargs": {
+        "column": "payment_method",
+        "value_set": [
+          "DEBIT_CARD",
+          "QRIS",
+          "CREDIT_CARD",
+          "CASH",
+          "E_WALLET"
+        ]
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_be_in_set"
+    },
+    {
+      "id": "c1bf22f2-b906-4c7f-868f-0556f0a39f3a",
+      "kwargs": {
+        "column": "amount",
+        "min_value": 0.0
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_column_values_to_be_between"
+    },
+    {
+      "id": "0018811b-0a21-4b96-97e2-107e47b89800",
+      "kwargs": {
+        "min_value": 1
+      },
+      "meta": {
+        "severity": "critical"
+      },
+      "severity": "critical",
+      "type": "expect_table_row_count_to_be_between"
+    }
+  ],
+  "id": "563eff09-ff5a-493e-8625-25065c5d72f5",
+  "meta": {
+    "great_expectations_version": "1.18.1"
+  },
+  "name": "payments_suite",
+  "notes": null
+}

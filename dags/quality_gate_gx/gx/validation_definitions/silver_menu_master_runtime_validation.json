@@ -1,22 +1,22 @@
 {
   "data": {
     "asset": {
-      "id": "3df38f34-a8a0-423f-b397-97888ca24fae",
+      "id": "433ed1b0-52b9-49a6-aa2c-35256d193987",
       "name": "menu_silver_asset"
     },
     "batch_definition": {
-      "id": "4bf31bb1-f9f2-47d0-bb75-ce53ecd3e859",
+      "id": "412b4bda-b432-4fc3-8b03-89d2e0b2ed50",
       "name": "menu_def"
     },
     "datasource": {
-      "id": "d38f5470-7f4b-4aec-9b93-a83c0707fc79",
+      "id": "c5a50ac1-377a-441f-b9e8-440dc600e547",
       "name": "silver_in_memory_data"
     }
   },
-  "id": "d7d1ae3e-983b-4821-896d-f589a468c6d5",
+  "id": "7e2fe0d1-9234-4fa6-afc8-d5d772be8cdc",
   "name": "silver_menu_master_runtime_validation",
   "suite": {
-    "id": "9426bbb6-8285-4348-9baf-f6c7aca74ffb",
+    "id": "03d61030-07c1-492e-b0c2-e6573d835a29",
     "name": "silver_menu_master_suite"
   }
 }

@@ -12,10 +12,19 @@ import os
 from datetime import datetime, timedelta
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
+from pyspark.errors import AnalysisException
 from pyspark import SparkContext
 from awsglue.context import GlueContext
 from awsglue.job import Job
-from modules.schemas import outlet_schema, menu_master_schema, orders_schema, order_items_schema
+from modules.schemas import (
+    outlet_schema,
+    menu_master_schema,
+    orders_schema,
+    order_items_schema,
+    payments_schema,
+    customers_schema,
+    employees_schema,
+)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 log = logging.getLogger(__name__)
@@ -31,6 +40,12 @@ def bronze_master_to_silver(spark):
     # ── Master tables (full load, flat path) ──────────────────────────
     outlet_df = spark.read.csv(f"{BRONZE_BUCKET}/outlet_master/", header=True, schema=outlet_schema)
     menu_df   = spark.read.csv(f"{BRONZE_BUCKET}/menu_master/", header=True, schema=menu_master_schema)
+    customers_df = spark.read.csv(
+        f"{BRONZE_BUCKET}/customers/", header=True, schema=customers_schema
+    )
+    employees_df = spark.read.csv(
+        f"{BRONZE_BUCKET}/employees/", header=True, schema=employees_schema
+    )
     
     # ── Write to Silver ───────────────────────────────────────────────
     outlet_df.write \
@@ -43,18 +58,121 @@ def bronze_master_to_silver(spark):
         .parquet(f"{SILVER_BUCKET}/menu_master/")
     log.info(f"📤 menu_master → {SILVER_BUCKET}/menu_master/")
 
+    # ── Customers: normalize + semantic validation ───────────────────
+    normalized_customers = (
+        customers_df
+        .withColumn("customer_name", F.trim(F.col("customer_name")))
+        .withColumn("email", F.lower(F.trim(F.col("email"))))
+        .withColumn(
+            "phone",
+            F.regexp_replace(F.trim(F.col("phone")), r"[\s().-]", ""),
+        )
+    )
+    valid_email = F.col("email").rlike(
+        r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"
+    )
+    valid_customer_timestamps = (
+        F.col("created_at").isNotNull()
+        & F.col("updated_at").isNotNull()
+        & (F.col("created_at") <= F.col("updated_at"))
+    )
+    invalid_customers = normalized_customers.filter(
+        ~valid_email | ~valid_customer_timestamps
+    )
+    valid_customers = normalized_customers.filter(
+        valid_email & valid_customer_timestamps
+    )
+    invalid_customer_count = invalid_customers.count()
+    if invalid_customer_count > 0:
+        invalid_customers.write \
+            .mode("overwrite") \
+            .parquet(f"{QUARANTINE_BUCKET}/customers/")
+        log.warning(
+            "⚠️ %d customers memiliki email atau timestamp tidak valid; "
+            "dipindahkan ke quarantine.",
+            invalid_customer_count,
+        )
+    valid_customers.write \
+        .mode("overwrite") \
+        .parquet(f"{SILVER_BUCKET}/customers/")
+    log.info(f"📤 customers → {SILVER_BUCKET}/customers/")
+
+    # ── Employees: normalize + referential/business validation ───────
+    normalized_employees = (
+        employees_df
+        .withColumn("employee_name", F.trim(F.col("employee_name")))
+        .withColumn("employee_role", F.upper(F.trim(F.col("employee_role"))))
+        .withColumn(
+            "employment_status",
+            F.upper(F.trim(F.col("employment_status"))),
+        )
+    )
+    valid_employee_status = F.col("employment_status").isin("ACTIVE", "INACTIVE")
+    employees_with_outlet = normalized_employees.join(
+        outlet_df.select("outlet_id")
+        .dropDuplicates()
+        .withColumn("_outlet_exists", F.lit(True)),
+        on="outlet_id",
+        how="left",
+    )
+    valid_employees = employees_with_outlet.filter(
+        F.col("_outlet_exists").isNotNull() & valid_employee_status
+    ).drop("_outlet_exists")
+    invalid_employees = employees_with_outlet.filter(
+        F.col("_outlet_exists").isNull() | ~valid_employee_status
+    ).drop("_outlet_exists")
+    invalid_employee_count = invalid_employees.count()
+    if invalid_employee_count > 0:
+        invalid_employees.write \
+            .mode("overwrite") \
+            .parquet(f"{QUARANTINE_BUCKET}/employees/")
+        log.warning(
+            "⚠️ %d employees memiliki outlet atau employment_status tidak valid; "
+            "dipindahkan ke quarantine.",
+            invalid_employee_count,
+        )
+    valid_employees.write \
+        .mode("overwrite") \
+        .parquet(f"{SILVER_BUCKET}/employees/")
+    log.info(f"📤 employees → {SILVER_BUCKET}/employees/")
+
     return outlet_df, menu_df
 
 def bronze_to_silver(spark, date, outlet_df, menu_df):
-    """Load Parquet dari Bronze → transform → write ke Silver."""
+    """Load transaction CSV dari Bronze, transform, lalu write ke Silver.
+
+    Missing transaction partitions are treated as a skippable condition so a
+    backfill can continue processing the remaining dates.
+    """
     partition = f"year={date[:4]}/month={date[5:7]}/day={date[8:10]}"
+    orders_path = f"{BRONZE_BUCKET}/orders/{partition}/"
+    order_items_path = f"{BRONZE_BUCKET}/order_items/{partition}/"
+    payments_path = f"{BRONZE_BUCKET}/payments/{partition}/"
     
     # ── Transaction tables (partitioned path) ─────────────────────────
-    orders_df = spark.read.csv(
-        f"{BRONZE_BUCKET}/orders/{partition}/", header=True, schema=orders_schema)
+    try:
+        orders_df = spark.read.csv(
+            orders_path, header=True, schema=orders_schema
+        )
+        order_items_df = spark.read.csv(
+            order_items_path, header=True, schema=order_items_schema
+        )
+        payments_df = spark.read.csv(
+            payments_path, header=True, schema=payments_schema
+        )
+    except AnalysisException as exc:
+        if "PATH_NOT_FOUND" not in str(exc):
+            raise
 
-    order_items_df = spark.read.csv(
-        f"{BRONZE_BUCKET}/order_items/{partition}/", header=True, schema=order_items_schema)
+        log.warning(
+            "Skipping date %s: transaction Bronze partition is missing. "
+            "orders=%s, order_items=%s, payments=%s",
+            date,
+            orders_path,
+            order_items_path,
+            payments_path,
+        )
+        return False
 
     # Check orders total_amount vs sum of order_items subtotal
     order_items_agg = order_items_df.groupBy("order_id").sum("subtotal").withColumnRenamed("sum(subtotal)", "calculated_total")
@@ -151,8 +269,17 @@ def bronze_to_silver(spark, date, outlet_df, menu_df):
                         (F.col("total_amount") == F.col("calculated_total")),
                         "valid"
                     ).otherwise("MISMATCH TOTAL AMOUNT")) \
-        .select("order_id", "outlet_id", "cashier_id", "total_amount",
-                "payment_method", "created_at", "data_quality_status")
+        .select(
+            "order_id",
+            "customer_id",
+            "outlet_id",
+            "cashier_id",
+            "total_amount",
+            "payment_method",
+            "order_status",
+            "created_at",
+            "data_quality_status",
+        )
 
     silver_orders_df.write \
         .mode("overwrite") \
@@ -162,12 +289,49 @@ def bronze_to_silver(spark, date, outlet_df, menu_df):
     order_items_df.write \
         .mode("overwrite") \
         .parquet(f"{SILVER_BUCKET}/order_items/{partition}/")
+    log.info(f"📤 order_items → {SILVER_BUCKET}/order_items/{partition}/")
+
+    # ── Payments: referential integrity ke orders ─────────────────────
+    known_order_ids = orders_df.select("order_id").dropDuplicates()
+    orphan_payments = payments_df.join(
+        known_order_ids,
+        on="order_id",
+        how="left_anti",
+    )
+    valid_payments = payments_df.join(
+        known_order_ids,
+        on="order_id",
+        how="left_semi",
+    )
+    orphan_payment_count = orphan_payments.count()
+    if orphan_payment_count > 0:
+        orphan_payments.write \
+            .mode("overwrite") \
+            .parquet(f"{QUARANTINE_BUCKET}/orphan_payments/{partition}/")
+        log.warning(
+            "⚠️ Ditemukan %d payments dengan order_id yang tidak ada di orders; "
+            "dipindahkan ke quarantine.",
+            orphan_payment_count,
+        )
+        log.info(
+            "📤 Orphan payments → %s/orphan_payments/%s/",
+            QUARANTINE_BUCKET,
+            partition,
+        )
+    else:
+        log.info("✅ Semua payment order_id memiliki pasangan di orders.")
+
+    valid_payments.write \
+        .mode("overwrite") \
+        .parquet(f"{SILVER_BUCKET}/payments/{partition}/")
+    log.info(f"📤 payments → {SILVER_BUCKET}/payments/{partition}/")
 
     # ── Quarantine Write ───────────────────────────────
     discrepancies.write \
         .mode("overwrite") \
         .parquet(f"{QUARANTINE_BUCKET}/orders_discrepancies/{partition}/")
     log.info(f"📤 Discrepancies orders → {QUARANTINE_BUCKET}/orders_discrepancies/{partition}/")
+    return True
 
 def date_range(start_str, end_str):
     """Yield dates from start to end inclusive."""
@@ -198,6 +362,8 @@ def main():
     job_name = raw_args.get("--JOB_NAME") or raw_args.get("JOB_NAME", "local")
 
     sc = SparkContext.getOrCreate()
+    sc.setLogLevel("WARN")
+
     glueContext = GlueContext(sc)
     spark = glueContext.spark_session
     job = Job(glueContext)
@@ -234,12 +400,24 @@ def main():
 
     outlet_df, menu_df = bronze_master_to_silver(spark)
 
+    processed_dates = 0
+    skipped_dates = 0
+
     for date in date_range(start_date, end_date):
         log.info(f"━━━ Processing date: {date} ━━━")
-        bronze_to_silver(spark, date, outlet_df, menu_df)
+        processed = bronze_to_silver(spark, date, outlet_df, menu_df)
+        if processed:
+            processed_dates += 1
+        else:
+            skipped_dates += 1
 
     elapsed = time.time() - total_start
-    log.info(f"✅ All done in {elapsed:.2f}s")
+    log.info(
+        "✅ All done in %.2fs — processed_dates=%d, skipped_dates=%d",
+        elapsed,
+        processed_dates,
+        skipped_dates,
+    )
 
     job.commit()
 

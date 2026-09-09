@@ -58,6 +58,9 @@ gx-db-shell:
 		user=gx_metadata_user \
 		sslmode=require"
 
+.PHONY: gx-metadata-shell
+gx-metadata-shell: gx-db-shell
+
 .PHONY: worker-shell
 worker-shell:
 	docker compose -f $(COMPOSE_FILE) exec airflow-worker bash
@@ -68,14 +71,28 @@ docker-restart:
 # ---------------------------------------------------------------------------
 # init-schema — Inject SOURCE-SCHEMA.sql ke primary database
 # ---------------------------------------------------------------------------
+.PHONY: init-schema
 init-schema:
 	@echo "Waiting for PostgreSQL at $(DB_HOST):$(DB_PORT) ..."
 	@until docker compose -f $(COMPOSE_FILE) exec postgres-primary pg_isready -U primary_user > /dev/null 2>&1; do \
 		sleep 1; \
 	done
 	@echo "Injecting $(SOURCE_SCHEMA) into primary ..."
-	@docker compose -f $(COMPOSE_FILE) exec -T postgres-primary psql -U primary_user -d main_db < $(SOURCE_SCHEMA)
+	@docker compose -f $(COMPOSE_FILE) exec -T postgres-primary psql -v ON_ERROR_STOP=1 -U primary_user -d main_db < $(SOURCE_SCHEMA)
 	@echo "Schema injected successfully."
+
+# ---------------------------------------------------------------------------
+# init-schema-dev — Inject SOURCE-SCHEMA-dev.sql ke schema dev
+# ---------------------------------------------------------------------------
+.PHONY: init-schema-dev
+init-schema-dev:
+	@echo "Waiting for PostgreSQL at $(DB_HOST):$(DB_PORT) ..."
+	@until docker compose -f $(COMPOSE_FILE) exec postgres-primary pg_isready -U primary_user > /dev/null 2>&1; do \
+		sleep 1; \
+	done
+	@echo "Injecting $(DEV_SOURCE_SCHEMA) into primary ..."
+	@docker compose -f $(COMPOSE_FILE) exec -T postgres-primary psql -v ON_ERROR_STOP=1 -U primary_user -d main_db < $(DEV_SOURCE_SCHEMA)
+	@echo "Development schema injected successfully into schema dev."
 
 # ---------------------------------------------------------------------------
 # truncate-primary — Hapus semua data di primary (reset tabel)
@@ -111,7 +128,8 @@ DBT_TABLES = dim_date dim_menu dim_outlet fact_order_items snp_menu_master snp_o
 
 TF_DEV_DIR = infrastructure/environments/dev
 TF_DATABASE_DIR = infrastructure/database
-SOURCE_SCHEMA = $(TF_DATABASE_DIR)/sql/SOURCE-SCHEMA.sql
+SOURCE_SCHEMA = $(TF_DATABASE_DIR)/sql/SOURCE-SCHEMA_v2.sql
+DEV_SOURCE_SCHEMA = $(TF_DATABASE_DIR)/sql/SOURCE-SCHEMA-dev.sql
 
 # ---------------------------------------------------------------------------
 # Terraform database — Role, user, dan grant PostgreSQL
@@ -287,14 +305,23 @@ spark-transform:
 	@echo "Running Spark transformation notebook ..."
 	cd dags/spark-transform && python transform.py
 
-.PHONY: glue-build
-glue-build:
-	@echo "Building custom Glue image ..."
-	docker build -t franchise-glue-custom:latest -f infrastructure/docker/Dockerfile.glue .
+# ---------------------------------------------------------------------------
+# spark-transform-glue — Jalankan transform_glue.py via Glue Local Docker
+#   make spark-transform-glue DATE=2026-09-08
+#   make spark-transform-glue START=2026-09-08 END=2026-09-10
+#   tanpa parameter tanggal → script memakai tanggal hari ini (UTC)
+# ---------------------------------------------------------------------------
+GLUE_TRANSFORM_SCRIPT = /home/hadoop/workspace/dags/spark-transform/transform_glue.py
 
-.PHONY: glue-run
-glue-run:
-	@./scripts/run-spark-glue.sh $(ARGS)
+.PHONY: spark-transform-glue
+spark-transform-glue:
+	@echo "Running AWS Glue local transformation ..."
+	@args=""; \
+	if [ -n "$(DATE)" ]; then args="$$args --date $(DATE)"; fi; \
+	if [ -n "$(START)" ]; then args="$$args --start-date $(START)"; fi; \
+	if [ -n "$(END)" ]; then args="$$args --end-date $(END)"; fi; \
+	docker compose -f $(COMPOSE_FILE) --profile glue run --rm glue \
+		spark-submit $(GLUE_TRANSFORM_SCRIPT) $$args
 
 S3_SCRIPTS_BUCKET = franchise-pipeline-dev-glue-scripts
 SCRIPT_LOCAL_PATH = dags/spark-transform/transform_glue.py
@@ -319,6 +346,10 @@ upload-script:
 	@echo "📤 Uploading $(SCRIPT_LOCAL_PATH) to S3..."
 	aws s3 cp $(SCRIPT_LOCAL_PATH) $(SCRIPT_S3_PATH)
 	@echo "✅ Script uploaded to $(SCRIPT_S3_PATH)"
+
+# Upload all (script + deps)
+.PHONY: deploy
+deploy: upload-script upload-deps
 
 # Upload all (script + deps) + jalankan Glue job (kasih DATE=YYYY-MM-DD)
 .PHONY: deploy-and-run

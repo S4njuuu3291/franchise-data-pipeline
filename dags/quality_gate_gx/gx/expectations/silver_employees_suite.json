@@ -1,0 +1,54 @@
+{
+  "expectations": [
+    {
+      "id": "d9c88f7b-3187-47f6-9867-8c89fcfd9b02",
+      "kwargs": {
+        "column_set": [
+          "employee_id",
+          "employee_name",
+          "employee_role",
+          "outlet_id",
+          "employment_status",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_columns_to_match_set"
+    },
+    {
+      "id": "e0224201-6054-4f80-822b-8a8f09896a4e",
+      "kwargs": {
+        "min_value": 1
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_row_count_to_be_between"
+    },
+    {
+      "id": "df680f51-52d1-4505-bcfb-715628447048",
+      "kwargs": {
+        "column": "employee_id"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "5ff8bad5-b3a1-473b-ae52-909a32a73f32",
+      "kwargs": {
+        "column": "outlet_id"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    }
+  ],
+  "id": "5964da61-08e9-446f-b105-5a6499fdb751",
+  "meta": {
+    "great_expectations_version": "1.18.1"
+  },
+  "name": "silver_employees_suite",
+  "notes": null
+}

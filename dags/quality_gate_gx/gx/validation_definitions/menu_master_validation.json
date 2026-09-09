@@ -1,22 +1,22 @@
 {
   "data": {
     "asset": {
-      "id": "7970c6d9-e2ae-4606-8443-15e5d09a5f38",
+      "id": "0cec2400-d71d-442c-9eba-57cad4ee5418",
       "name": "menu_master_asset"
     },
     "batch_definition": {
-      "id": "08475580-a5c3-4343-b84f-5ba782579756",
+      "id": "fcc88f59-24c8-4fa4-8fc4-9147e64ffcd5",
       "name": "daily_menu_definition"
     },
     "datasource": {
-      "id": "3954ebb1-24f3-4bd9-b332-8b960daab7bb",
+      "id": "1337ecc7-cda6-4c6d-bb2c-7d91570685e8",
       "name": "bronze_data"
     }
   },
-  "id": "b73821e9-0403-44f5-bd8c-85a01c34022c",
+  "id": "4eff1175-3d2b-4416-984f-d3b10dcc031d",
   "name": "menu_master_validation",
   "suite": {
-    "id": "9497a510-a12c-444c-a2d0-aada6eaa6230",
+    "id": "a118851c-8914-4d85-a0ac-a7c7ca3a0185",
     "name": "menu_master_suite"
   }
 }

@@ -13,7 +13,13 @@ sources:
         freshness: null
       - name: outlet_master
         freshness: null
+      - name: customers
+        freshness: null
+      - name: employees
+        freshness: null
       - name: orders
         loaded_at_field: created_at
       - name: order_items
+        freshness: null
+      - name: payments
         freshness: null

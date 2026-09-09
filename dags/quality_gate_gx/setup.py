@@ -41,7 +41,12 @@ with open(_config_path) as _f:
 
 logger.info("Initializing GX quality gate")
 
-context = gx.get_context(mode='file')
+gx_context_root = Path(__file__).resolve().parent / "gx"
+gx_context_root.mkdir(parents=True, exist_ok=True)
+context = gx.get_context(
+    mode="file",
+    context_root_dir=str(gx_context_root),
+)
 
 datasource_name = "bronze_data"
 bucket_name = _cfg["bronze"]
@@ -52,19 +57,39 @@ datasource = context.data_sources.add_or_update_pandas_s3(
 )
 logger.info("GX datasource ready: %s", datasource_name)
 
+# ============================================================================
+# ASSET MASTER DATA — data referensi/dimensi, tanpa partisi tanggal
+# ============================================================================
 menu_master = "menu_master_asset"
 outlet_master = "outlet_master_asset"
+customer_master = "customers_asset"
+employee_master = "employees_asset"
+# Asset orders/order_items didefinisikan pada blok transaction di bawah.
 orders = "orders_asset"
 order_items = "order_items_asset"
 
+# ------------------------------ menu_master --------------------------------
 menu_master_asset = datasource.add_csv_asset(
     name=menu_master,
     s3_prefix="menu_master/", 
 )
 
+# ----------------------------- outlet_master -------------------------------
 outlet_master_asset = datasource.add_csv_asset(
     name=outlet_master,
     s3_prefix="outlet_master/", 
+)
+
+# ------------------------------- customers ---------------------------------
+customer_master_asset = datasource.add_csv_asset(
+    name=customer_master,
+    s3_prefix="customers/",
+)
+
+# -------------------------------- employees ---------------------------------
+employee_master_asset = datasource.add_csv_asset(
+    name=employee_master,
+    s3_prefix="employees/",
 )
 
 menu_batch_definition = menu_master_asset.add_batch_definition_path(
@@ -77,9 +102,21 @@ outlet_batch_definition = outlet_master_asset.add_batch_definition_path(
     path=r".*\.csv"  # Tulis regex nama file Anda di sini
 )
 
+customer_batch_definition = customer_master_asset.add_batch_definition_path(
+    name="daily_customers_definition",
+    path=r".*\.csv",
+)
+
+employee_batch_definition = employee_master_asset.add_batch_definition_path(
+    name="daily_employees_definition",
+    path=r".*\.csv",
+)
+
 logger.info("Master batch definitions configured")
 
-# Suite for menu_master
+# ============================================================================
+# EXPECTATION SUITE — menu_master
+# ============================================================================
 menu_suite_name = "menu_master_suite"
 
 logger.info("Creating expectation suite: %s", menu_suite_name)
@@ -117,7 +154,9 @@ menu_suite.add_expectation(
 context.suites.add_or_update(menu_suite)
 logger.info("Expectation suite saved: %s (%d expectations)", menu_suite_name, len(menu_suite.expectations))
 
-# Suite for outlet_master
+# ============================================================================
+# EXPECTATION SUITE — outlet_master
+# ============================================================================
 outlet_suite_name = "outlet_master_suite"
 
 logger.info("Creating expectation suite: %s", outlet_suite_name)
@@ -152,6 +191,99 @@ outlet_suite.add_expectation(
 context.suites.add_or_update(outlet_suite)
 logger.info("Expectation suite saved: %s (%d expectations)", outlet_suite_name, len(outlet_suite.expectations))
 
+# ============================================================================
+# EXPECTATION SUITE — customers
+# ============================================================================
+customer_suite_name = "customers_suite"
+
+logger.info("Creating expectation suite: %s", customer_suite_name)
+customer_suite = gx.ExpectationSuite(name=customer_suite_name)
+
+customer_suite.add_expectation(
+    gx.expectations.ExpectTableColumnsToMatchSet(
+        column_set=[
+            "customer_id",
+            "customer_name",
+            "email",
+            "phone",
+            "created_at",
+            "updated_at",
+        ],
+        exact_match=True,
+    )
+)
+for column in ("customer_id", "customer_name", "email", "phone"):
+    customer_suite.add_expectation(
+        gx.expectations.ExpectColumnValuesToNotBeNull(column=column)
+    )
+customer_suite.add_expectation(
+    gx.expectations.ExpectColumnValuesToBeUnique(column="customer_id")
+)
+customer_suite.add_expectation(
+    gx.expectations.ExpectColumnValuesToBeUnique(column="email")
+)
+customer_suite.add_expectation(
+    gx.expectations.ExpectTableRowCountToBeBetween(min_value=1)
+)
+
+context.suites.add_or_update(customer_suite)
+logger.info("Expectation suite saved: %s (%d expectations)", customer_suite_name, len(customer_suite.expectations))
+
+# ============================================================================
+# EXPECTATION SUITE — employees
+# ============================================================================
+employee_suite_name = "employees_suite"
+
+logger.info("Creating expectation suite: %s", employee_suite_name)
+employee_suite = gx.ExpectationSuite(name=employee_suite_name)
+
+employee_suite.add_expectation(
+    gx.expectations.ExpectTableColumnsToMatchSet(
+        column_set=[
+            "employee_id",
+            "employee_name",
+            "employee_role",
+            "outlet_id",
+            "employment_status",
+            "created_at",
+            "updated_at",
+        ],
+        exact_match=True,
+    )
+)
+for column in (
+    "employee_id",
+    "employee_name",
+    "employee_role",
+    "outlet_id",
+    "employment_status",
+):
+    employee_suite.add_expectation(
+        gx.expectations.ExpectColumnValuesToNotBeNull(column=column)
+    )
+employee_suite.add_expectation(
+    gx.expectations.ExpectColumnValuesToBeUnique(column="employee_id")
+)
+employee_suite.add_expectation(
+    gx.expectations.ExpectColumnValuesToBeInSet(
+        column="employee_role",
+        value_set=["CASHIER", "STAFF", "MANAGER"],
+        mostly=1.0,
+        meta={"severity": "critical"},
+    )
+)
+employee_suite.add_expectation(
+    gx.expectations.ExpectTableRowCountToBeBetween(min_value=1)
+)
+
+context.suites.add_or_update(employee_suite)
+logger.info("Expectation suite saved: %s (%d expectations)", employee_suite_name, len(employee_suite.expectations))
+
+# ============================================================================
+# VALIDATION DEFINITIONS — master data
+# ============================================================================
+# menu_master dan outlet_master adalah master data yang diekstrak flat.
+# ============================================================================
 # Validation for menu_master
 menu_validation_definition = gx.ValidationDefinition(
     name="menu_master_validation",
@@ -166,14 +298,38 @@ outlet_validation_definition = gx.ValidationDefinition(
     data=outlet_batch_definition
 )
 
+customer_validation_definition = gx.ValidationDefinition(
+    name="customers_validation",
+    suite=customer_suite,
+    data=customer_batch_definition,
+)
+
+employee_validation_definition = gx.ValidationDefinition(
+    name="employees_validation",
+    suite=employee_suite,
+    data=employee_batch_definition,
+)
+
 context.validation_definitions.add_or_update(menu_validation_definition)
 context.validation_definitions.add_or_update(outlet_validation_definition)
-# Checkpoint for master
+context.validation_definitions.add_or_update(customer_validation_definition)
+context.validation_definitions.add_or_update(employee_validation_definition)
+# Checkpoint untuk seluruh master data: menu, outlet, customer, employee
 
 checkpoint = gx.Checkpoint(
     name="master_data_checkpoint",
-    validation_definitions=[menu_validation_definition, outlet_validation_definition],
-    actions=[],
+    validation_definitions=[
+        menu_validation_definition,
+        outlet_validation_definition,
+        customer_validation_definition,
+        employee_validation_definition,
+    ],
+    actions=[
+        gx.checkpoint.UpdateDataDocsAction(
+            name="update_master_data_docs",
+            site_names=["quality_gate_site"],
+        )
+    ],
     result_format={"result_format": "SUMMARY"},
 )
 
@@ -202,19 +358,29 @@ if site_name not in context.get_site_names():
 else:
     logger.info("Data Docs site already exists: %s", site_name)
 
-# =========================================================
-
+# ============================================================================
+# ASSET TRANSACTION DATA — dipartisi berdasarkan tanggal transaksi
+# ============================================================================
 orders = "orders_asset"
 order_items = "order_items_asset"
+payments = "payments_asset"
 
+# -------------------------------- orders -----------------------------------
 orders_asset = datasource.add_csv_asset(
     name=orders,
     s3_prefix=f"orders/year={year}/month={month}/day={day}/",
 )
 
+# ----------------------------- order_items ---------------------------------
 order_items_asset = datasource.add_csv_asset(
     name=order_items,
     s3_prefix=f"order_items/year={year}/month={month}/day={day}/",
+)
+
+# -------------------------------- payments ---------------------------------
+payments_asset = datasource.add_csv_asset(
+    name=payments,
+    s3_prefix=f"payments/year={year}/month={month}/day={day}/",
 )
 
 orders_batch_definition = orders_asset.add_batch_definition_path(
@@ -229,7 +395,14 @@ order_items_batch_definition = order_items_asset.add_batch_definition_path(
     path=r"order_items.csv"  # Tulis regex nama file Anda di sini
 )
 
-# Suite for orders
+payments_batch_definition = payments_asset.add_batch_definition_path(
+    name="daily_payments_definition",
+    path=r"payments.csv",
+)
+
+# ============================================================================
+# EXPECTATION SUITE — orders
+# ============================================================================
 orders_suite_name = "orders_suite"
 
 logger.info("Creating expectation suite: %s", orders_suite_name)
@@ -239,10 +412,12 @@ orders_suite.add_expectation(
     gx.expectations.ExpectTableColumnsToMatchSet(
         column_set=[
             "order_id",
+            "customer_id",
             "outlet_id",
             "cashier_id",
             "total_amount",
             "payment_method",
+            "order_status",
             "created_at",
         ],
         exact_match=True,
@@ -255,6 +430,7 @@ for column in (
     "cashier_id",
     "total_amount",
     "payment_method",
+    "order_status",
     "created_at",
 ):
     orders_suite.add_expectation(
@@ -279,7 +455,7 @@ orders_suite.add_expectation(
 orders_suite.add_expectation(
     gx.expectations.ExpectColumnValuesToBeInSet(
         column="payment_method",
-        value_set=["Cash", "Credit Card", "Debit Card", "GoPay", "OVO", "QRIS"],
+        value_set=["QRIS", "E_WALLET", "DEBIT_CARD", "CREDIT_CARD", "CASH"],
         mostly=1.0,
         meta={"severity": "warning"},
     )
@@ -288,7 +464,9 @@ orders_suite.add_expectation(
 context.suites.add_or_update(orders_suite)
 logger.info("Expectation suite saved: %s (%d expectations)", orders_suite_name, len(orders_suite.expectations))
 
-# Suite for order_items
+# ============================================================================
+# EXPECTATION SUITE — order_items
+# ============================================================================
 order_items_suite_name = "order_items_suite"
 
 logger.info("Creating expectation suite: %s", order_items_suite_name)
@@ -354,6 +532,85 @@ for column in ("price_per_item", "subtotal"):
 context.suites.add_or_update(order_items_suite)
 logger.info("Expectation suite saved: %s (%d expectations)", order_items_suite_name, len(order_items_suite.expectations))
 
+# ==========================================================================
+# EXPECTATION SUITE — payments
+# ==========================================================================
+payments_suite_name = "payments_suite"
+
+logger.info("Creating expectation suite: %s", payments_suite_name)
+payments_suite = gx.ExpectationSuite(name=payments_suite_name)
+
+payments_suite.add_expectation(
+    gx.expectations.ExpectTableColumnsToMatchSet(
+        column_set=[
+            "payment_id",
+            "order_id",
+            "payment_method",
+            "payment_status",
+            "amount",
+            "paid_at",
+            "provider_reference",
+        ],
+        exact_match=True,
+        meta={"severity": "critical"},
+    )
+)
+
+for column in (
+    "payment_id",
+    "order_id",
+    "payment_method",
+    "payment_status",
+    "amount",
+    "paid_at",
+    "provider_reference",
+):
+    payments_suite.add_expectation(
+        gx.expectations.ExpectColumnValuesToNotBeNull(
+            column=column,
+            meta={"severity": "critical"},
+        )
+    )
+
+payments_suite.add_expectation(
+    gx.expectations.ExpectColumnValuesToBeUnique(
+        column="payment_id",
+        meta={"severity": "critical"},
+    )
+)
+payments_suite.add_expectation(
+    gx.expectations.ExpectColumnValuesToBeInSet(
+        column="payment_status",
+        value_set=["REFUNDED", "SUCCESS", "FAILED", "PENDING"],
+        mostly=1.0,
+        meta={"severity": "critical"},
+    )
+)
+payments_suite.add_expectation(
+    gx.expectations.ExpectColumnValuesToBeInSet(
+        column="payment_method",
+        value_set=["DEBIT_CARD", "QRIS", "CREDIT_CARD", "CASH", "E_WALLET"],
+        mostly=1.0,
+        meta={"severity": "critical"},
+    )
+)
+payments_suite.add_expectation(
+    gx.expectations.ExpectColumnValuesToBeBetween(
+        column="amount",
+        min_value=0,
+        meta={"severity": "critical"},
+    )
+)
+payments_suite.add_expectation(
+    gx.expectations.ExpectTableRowCountToBeBetween(
+        min_value=1,
+        meta={"severity": "critical"},
+    )
+)
+
+context.suites.add_or_update(payments_suite)
+logger.info("Expectation suite saved: %s (%d expectations)", payments_suite_name, len(payments_suite.expectations))
+
 # Validation definitions and checkpoint for transactions
 orders_validation_definition = gx.ValidationDefinition(
     name="orders_validation",
@@ -365,17 +622,29 @@ order_items_validation_definition = gx.ValidationDefinition(
     suite=order_items_suite,
     data=order_items_batch_definition,
 )
+payments_validation_definition = gx.ValidationDefinition(
+    name="payments_validation",
+    suite=payments_suite,
+    data=payments_batch_definition,
+)
 
 context.validation_definitions.add_or_update(orders_validation_definition)
 context.validation_definitions.add_or_update(order_items_validation_definition)
+context.validation_definitions.add_or_update(payments_validation_definition)
 
 transaction_checkpoint = gx.Checkpoint(
     name="transaction_data_checkpoint",
     validation_definitions=[
         orders_validation_definition,
         order_items_validation_definition,
+        payments_validation_definition,
     ],
-    actions=[],
+    actions=[
+        gx.checkpoint.UpdateDataDocsAction(
+            name="update_transaction_data_docs",
+            site_names=["quality_gate_site"],
+        )
+    ],
     result_format={"result_format": "SUMMARY"},
 )
 context.checkpoints.add_or_update(transaction_checkpoint)

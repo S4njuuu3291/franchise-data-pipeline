@@ -1,18 +1,30 @@
 {
-  "actions": [],
-  "id": "46564284-0582-4b69-bc51-d8fdcacde59b",
+  "actions": [
+    {
+      "name": "update_transaction_data_docs",
+      "site_names": [
+        "quality_gate_site"
+      ],
+      "type": "update_data_docs"
+    }
+  ],
+  "id": "6aaf7b22-5d81-4a3b-9292-29ac53a97642",
   "name": "transaction_data_checkpoint",
   "result_format": {
     "result_format": "SUMMARY"
   },
   "validation_definitions": [
     {
-      "id": "122bdb19-27c6-4856-aa44-ca13d4544164",
+      "id": "a786045c-c101-413d-8890-09a24e40851b",
       "name": "orders_validation"
     },
     {
-      "id": "455522de-7f30-43f5-a078-cbd47985fb31",
+      "id": "7f6aced8-7a1e-493e-8b25-b8c2703bc8f5",
       "name": "order_items_validation"
+    },
+    {
+      "id": "e28b8c20-93f8-49c3-8a16-672b2ff7a0c4",
+      "name": "payments_validation"
     }
   ]
 }

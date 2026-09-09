@@ -1,18 +1,34 @@
 {
-  "actions": [],
-  "id": "df216eb4-4d1d-4992-ba7e-3b25dbb939b7",
+  "actions": [
+    {
+      "name": "update_master_data_docs",
+      "site_names": [
+        "quality_gate_site"
+      ],
+      "type": "update_data_docs"
+    }
+  ],
+  "id": "770ad6b4-8159-4788-acfd-66059b7f3118",
   "name": "master_data_checkpoint",
   "result_format": {
     "result_format": "SUMMARY"
   },
   "validation_definitions": [
     {
-      "id": "b73821e9-0403-44f5-bd8c-85a01c34022c",
+      "id": "4eff1175-3d2b-4416-984f-d3b10dcc031d",
       "name": "menu_master_validation"
     },
     {
-      "id": "e3a7b71b-7a5f-46df-ae10-c2e70fbe30a7",
+      "id": "ea77df99-ff2d-4fcf-b3c0-610d0495d9f2",
       "name": "outlet_master_validation"
+    },
+    {
+      "id": "cc7b885c-dc30-4c8d-ade5-5d19bb5e788d",
+      "name": "customers_validation"
+    },
+    {
+      "id": "bfc64d97-06f2-406c-8ddd-4a0432eff4ff",
+      "name": "employees_validation"
     }
   ]
 }

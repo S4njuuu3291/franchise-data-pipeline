@@ -109,6 +109,56 @@ models:
       - name: year_month
         description: "Tahun-Bulan (YYYY-MM)"
 
+  - name: dim_customer
+    description: "Dimension customer — SCD Type 2 dari snp_customers"
+    columns:
+      - name: customer_id
+        description: "Natural key customer — tidak unique sendiri karena SCD Type 2"
+        tests:
+          - not_null
+      - name: customer_name
+        description: "Nama customer"
+      - name: email
+        description: "Email customer"
+      - name: phone
+        description: "Nomor telepon customer"
+      - name: created_at
+        description: "Timestamp customer dibuat"
+      - name: updated_at
+        description: "Timestamp customer diupdate"
+      - name: row_start_date
+        description: "SCD Type 2 — mulai berlaku"
+      - name: row_end_date
+        description: "SCD Type 2 — akhir berlaku (NULL = masih aktif)"
+      - name: is_current_active
+        description: "Flag apakah record customer masih aktif"
+
+  - name: dim_employee
+    description: "Dimension employee — SCD Type 2 dari snp_employees"
+    columns:
+      - name: employee_id
+        description: "Natural key employee — tidak unique sendiri karena SCD Type 2"
+        tests:
+          - not_null
+      - name: employee_name
+        description: "Nama employee"
+      - name: employee_role
+        description: "Role employee"
+      - name: outlet_id
+        description: "Outlet tempat employee bekerja"
+      - name: employment_status
+        description: "Status employment"
+      - name: created_at
+        description: "Timestamp employee dibuat"
+      - name: updated_at
+        description: "Timestamp employee diupdate"
+      - name: row_start_date
+        description: "SCD Type 2 — mulai berlaku"
+      - name: row_end_date
+        description: "SCD Type 2 — akhir berlaku (NULL = masih aktif)"
+      - name: is_current_active
+        description: "Flag apakah record employee masih aktif"
+
   - name: dim_outlet
     description: "Dimension outlet — SCD Type 2 dari snp_outlet_master dengan enrichment region_label"
     columns:
@@ -134,3 +184,44 @@ models:
         description: "SCD Type 2 — akhir berlaku (NULL = masih aktif)"
       - name: is_current_active
         description: "Flag apakah record ini yang aktif sekarang"
+
+  - name: fact_payments
+    description: "Fact table — grain per payment_id, payment yang terhubung ke order valid"
+    columns:
+      - name: payment_id
+        description: "Primary key payment"
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: "Foreign key ke orders"
+        tests:
+          - not_null
+      - name: payment_method
+        description: "Metode pembayaran"
+      - name: payment_status
+        description: "Status pembayaran"
+      - name: amount
+        description: "Nominal pembayaran"
+      - name: paid_at
+        description: "Timestamp pembayaran"
+      - name: provider_reference
+        description: "Referensi dari provider pembayaran"
+      - name: customer_id
+        description: "Customer pada order; NULL untuk transaksi walk-in"
+      - name: outlet_id
+        description: "Outlet pada order"
+      - name: cashier_id
+        description: "Employee/cashier pada order"
+      - name: order_status
+        description: "Status order terkait"
+      - name: order_created_at
+        description: "Timestamp order dibuat"
+      - name: payment_date
+        description: "Tanggal pembayaran"
+      - name: year
+        description: "Partisi tahun"
+      - name: month
+        description: "Partisi bulan"
+      - name: day
+        description: "Partisi hari"

@@ -4,7 +4,7 @@
 # Ubah nilai di bawah ini untuk mengontrol rentang tanggal & volume simulasi.
 
 simulation:
-  start_date: "2026-09-04"    # Tanggal mulai simulasi (YYYY-MM-DD)
+  start_date: "2026-09-08"    # Tanggal mulai simulasi (YYYY-MM-DD)
   end_date: "2026-09-10"      # Tanggal akhir simulasi (YYYY-MM-DD)
 
   # Kontrol volume transaksi — scale 1.0 = 100% (volume original)

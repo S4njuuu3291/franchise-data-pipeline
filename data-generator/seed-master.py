@@ -4,8 +4,16 @@ from datetime import datetime
 from faker import Faker
 import psycopg2
 from psycopg2.extras import execute_values
+from psycopg2 import sql
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_SCHEMA = os.getenv("DB_SCHEMA", "public")
+OUTLET_COUNT = int(os.getenv("OUTLET_COUNT", "1000"))
+CUSTOMER_COUNT = int(os.getenv("CUSTOMER_COUNT", "1000"))
+EMPLOYEES_PER_OUTLET = int(os.getenv("EMPLOYEES_PER_OUTLET", "2"))
+
+if DB_SCHEMA not in {"public", "dev"}:
+    raise ValueError("DB_SCHEMA hanya boleh bernilai 'public' atau 'dev'")
 
 
 def get_secret_or_env(env_name, secret_path):
@@ -98,14 +106,16 @@ def get_db_connection():
     )
 
 def seed_outlets(cursor):
-    print("-> Men-generate 1.000 data outlet_master...")
-    fake = Faker('id_ID')
+    print(f"-> Men-generate {OUTLET_COUNT} data outlet_master pada schema {DB_SCHEMA}...")
+    fake = Faker("id_ID")
     outlets_data = []
 
-    for i in range(1, 1001):
-        if i <= 400:
+    for i in range(1, OUTLET_COUNT + 1):
+        tier_1_limit = int(OUTLET_COUNT * 0.4)
+        tier_2_limit = int(OUTLET_COUNT * 0.8)
+        if i <= tier_1_limit:
             tier = "Tier 1"
-        elif i <= 800:
+        elif i <= tier_2_limit:
             tier = "Tier 2"
         else:
             tier = "Tier 3"
@@ -115,13 +125,14 @@ def seed_outlets(cursor):
         
         outlets_data.append((i, outlet_name, city, tier, START_TIMESTAMP, START_TIMESTAMP))
 
-    query = """
-        INSERT INTO outlet_master (outlet_id, outlet_name, city, region_tier, created_at, updated_at)
+    query = sql.SQL("""
+        INSERT INTO {} (outlet_id, outlet_name, city, region_tier, created_at, updated_at)
         VALUES %s
         ON CONFLICT (outlet_id) DO NOTHING;
-    """
+    """).format(sql.Identifier(DB_SCHEMA, "outlet_master"))
     execute_values(cursor, query, outlets_data)
-    print("SUCCESS: 1.000 outlet berhasil ditanam.")
+    print(f"SUCCESS: {len(outlets_data)} outlet berhasil ditanam.")
+    return [{"id": row[0], "tier": row[3]} for row in outlets_data]
 
 def seed_menu_master(cursor):
     print("-> Men-generate 40 data menu_master dengan skema Columnar Pricing...")
@@ -140,13 +151,70 @@ def seed_menu_master(cursor):
             START_TIMESTAMP
         ))
         
-    query = """
-        INSERT INTO menu_master (menu_id, menu_name, category, base_price, price_tier_1, price_tier_2, price_tier_3, is_promo_active, updated_at)
+    query = sql.SQL("""
+        INSERT INTO {} (menu_id, menu_name, category, base_price, price_tier_1, price_tier_2, price_tier_3, is_promo_active, updated_at)
         VALUES %s
         ON CONFLICT (menu_id) DO NOTHING;
-    """
+    """).format(sql.Identifier(DB_SCHEMA, "menu_master"))
     execute_values(cursor, query, menus_data)
     print(f"SUCCESS: {len(menus_data)} baris menu master berhasil ditanam.")
+
+def seed_customers(cursor):
+    """Seed customer dengan email unik dan ID deterministik."""
+    print(f"-> Men-generate {CUSTOMER_COUNT} data customers...")
+    fake = Faker("id_ID")
+    customers_data = []
+
+    for customer_id in range(1, CUSTOMER_COUNT + 1):
+        customers_data.append((
+            customer_id,
+            fake.name(),
+            f"customer{customer_id}@example.com",
+            f"+628{customer_id:09d}",
+            START_TIMESTAMP,
+            START_TIMESTAMP,
+        ))
+
+    query = sql.SQL("""
+        INSERT INTO {} (customer_id, customer_name, email, phone, created_at, updated_at)
+        VALUES %s
+        ON CONFLICT (customer_id) DO NOTHING;
+    """).format(sql.Identifier(DB_SCHEMA, "customers"))
+    execute_values(cursor, query, customers_data)
+    print(f"SUCCESS: {len(customers_data)} customer berhasil ditanam.")
+    return [row[0] for row in customers_data]
+
+def seed_employees(cursor, outlets):
+    """Seed employee yang selalu memiliki outlet_id valid."""
+    employee_roles = ["CASHIER", "STAFF", "MANAGER"]
+    employees_data = []
+    employee_id = 101
+    fake = Faker("id_ID")
+
+    for outlet in outlets:
+        for employee_index in range(EMPLOYEES_PER_OUTLET):
+            employees_data.append((
+                employee_id,
+                fake.name(),
+                employee_roles[employee_index % len(employee_roles)],
+                outlet["id"],
+                "ACTIVE",
+                START_TIMESTAMP,
+                START_TIMESTAMP,
+            ))
+            employee_id += 1
+
+    query = sql.SQL("""
+        INSERT INTO {} (
+            employee_id, employee_name, employee_role, outlet_id,
+            employment_status, created_at, updated_at
+        )
+        VALUES %s
+        ON CONFLICT (employee_id) DO NOTHING;
+    """).format(sql.Identifier(DB_SCHEMA, "employees"))
+    execute_values(cursor, query, employees_data)
+    print(f"SUCCESS: {len(employees_data)} employee berhasil ditanam.")
+    return [row[0] for row in employees_data]
 
 def main():
     print("=== MEMULAI PROSES SEEDING DATA MASTER HULU ===")
@@ -155,8 +223,10 @@ def main():
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
-            seed_outlets(cursor)
+            outlets = seed_outlets(cursor)
             seed_menu_master(cursor)
+            seed_customers(cursor)
+            seed_employees(cursor, outlets)
             conn.commit()
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()

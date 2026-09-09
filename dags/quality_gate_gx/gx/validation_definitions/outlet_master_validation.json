@@ -1,22 +1,22 @@
 {
   "data": {
     "asset": {
-      "id": "3d1b15e7-7646-4309-bce1-936e395ed93a",
+      "id": "de9ca9f2-853d-4373-b96c-fe02e2b27e19",
       "name": "outlet_master_asset"
     },
     "batch_definition": {
-      "id": "00c1f62b-e274-45d2-a575-fe38dbb6bd5b",
+      "id": "f6111770-2cf3-4002-bd6a-b812b2686f1d",
       "name": "daily_outlet_definition"
     },
     "datasource": {
-      "id": "3954ebb1-24f3-4bd9-b332-8b960daab7bb",
+      "id": "1337ecc7-cda6-4c6d-bb2c-7d91570685e8",
       "name": "bronze_data"
     }
   },
-  "id": "e3a7b71b-7a5f-46df-ae10-c2e70fbe30a7",
+  "id": "ea77df99-ff2d-4fcf-b3c0-610d0495d9f2",
   "name": "outlet_master_validation",
   "suite": {
-    "id": "0753ea8b-e234-4276-9e6a-f6d9e42f0fb9",
+    "id": "652eb0c5-68fc-424e-949d-308b87e8414c",
     "name": "outlet_master_suite"
   }
 }

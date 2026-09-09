@@ -1,0 +1,40 @@
+version: 2
+
+models:
+  - name: obt_franchise_sales
+    description: "One Big Table untuk analisis penjualan franchise dengan grain satu baris per order item"
+    columns:
+      - name: item_id
+        description: "Grain utama OBT: satu baris per order item"
+        tests:
+          - not_null
+      - name: order_id
+        description: "Order terkait"
+        tests:
+          - not_null
+      - name: menu_id
+        description: "Menu terkait"
+      - name: customer_id
+        description: "Customer terkait; NULL untuk transaksi walk-in"
+      - name: outlet_id
+        description: "Outlet tempat order dibuat"
+      - name: employee_id
+        description: "Employee/cashier terkait"
+      - name: subtotal
+        description: "Subtotal item"
+      - name: total_amount
+        description: "Total order"
+      - name: payment_count
+        description: "Jumlah payment untuk order"
+      - name: total_paid_amount
+        description: "Total nominal payment untuk order"
+      - name: successful_paid_amount
+        description: "Total payment dengan status SUCCESS"
+      - name: has_successful_payment
+        description: "Flag apakah order memiliki payment SUCCESS"
+      - name: year
+        description: "Partisi tahun"
+      - name: month
+        description: "Partisi bulan"
+      - name: day
+        description: "Partisi hari"

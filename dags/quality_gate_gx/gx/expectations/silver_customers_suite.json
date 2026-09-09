@@ -1,0 +1,44 @@
+{
+  "expectations": [
+    {
+      "id": "e24c34f1-7dc5-442a-8558-6021909be27c",
+      "kwargs": {
+        "column_set": [
+          "customer_id",
+          "customer_name",
+          "email",
+          "phone",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_columns_to_match_set"
+    },
+    {
+      "id": "218bcdc5-94cd-43dc-b44f-8f05cd8b6910",
+      "kwargs": {
+        "min_value": 1
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_table_row_count_to_be_between"
+    },
+    {
+      "id": "ed7ab150-8a5f-48a7-a6d8-f5d758d29046",
+      "kwargs": {
+        "column": "customer_id"
+      },
+      "meta": {},
+      "severity": "critical",
+      "type": "expect_column_values_to_not_be_null"
+    }
+  ],
+  "id": "6bec59ea-db4a-49b7-87a3-e4bd7d7b3d96",
+  "meta": {
+    "great_expectations_version": "1.18.1"
+  },
+  "name": "silver_customers_suite",
+  "notes": null
+}
