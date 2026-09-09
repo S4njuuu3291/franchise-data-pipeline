@@ -38,3 +38,25 @@ models:
         description: "Harga per item saat transaksi"
       - name: subtotal
         description: "Subtotal (quantity * price_per_item)"
+
+  - name: stg_payment
+    description: "Staging model for payment data from Silver layer"
+    columns:
+      - name: payment_id
+        description: "Primary key payment"
+        tests:
+          - not_null
+      - name: order_id
+        description: "Foreign key ke orders"
+        tests:
+          - not_null
+      - name: payment_method
+        description: "Metode pembayaran"
+      - name: payment_status
+        description: "Status pembayaran"
+      - name: amount
+        description: "Nominal pembayaran"
+      - name: paid_at
+        description: "Timestamp pembayaran"
+      - name: provider_reference
+        description: "Referensi dari provider pembayaran"
