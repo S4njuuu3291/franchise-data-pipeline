@@ -59,6 +59,8 @@ func TestS3KeyGeneration_AllMasterTables(t *testing.T) {
 	}{
 		{"menu_master/menu_master.csv", "menu_master/menu_master.csv"},
 		{"outlet_master/outlet_master.csv", "outlet_master/outlet_master.csv"},
+		{"customers/customers.csv", "customers/customers.csv"},
+		{"employees/employees.csv", "employees/employees.csv"},
 	}
 
 	for _, m := range masters {
@@ -113,8 +115,11 @@ func TestQueryHeaderCount(t *testing.T) {
 	}{
 		{"menu_master", []string{"menu_id", "menu_name", "category", "base_price", "price_tier_1", "price_tier_2", "price_tier_3", "is_promo_active", "updated_at"}, 9},
 		{"outlet_master", []string{"outlet_id", "outlet_name", "city", "region_tier", "created_at", "updated_at"}, 6},
-		{"orders", []string{"order_id", "outlet_id", "cashier_id", "total_amount", "payment_method", "created_at"}, 6},
+		{"orders", []string{"order_id", "customer_id", "outlet_id", "cashier_id", "total_amount", "payment_method", "order_status", "created_at"}, 8},
 		{"order_items", []string{"item_id", "order_id", "menu_id", "quantity", "price_per_item", "subtotal"}, 6},
+		{"payments", []string{"payment_id", "order_id", "payment_method", "payment_status", "amount", "paid_at", "provider_reference"}, 7},
+		{"customers", []string{"customer_id", "customer_name", "email", "phone", "created_at", "updated_at"}, 6},
+		{"employees", []string{"employee_id", "employee_name", "employee_role", "outlet_id", "employment_status", "created_at", "updated_at"}, 7},
 	}
 
 	for _, tt := range tests {

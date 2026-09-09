@@ -229,6 +229,20 @@ func main() {
 			Header:   []string{"outlet_id", "outlet_name", "city", "region_tier", "created_at", "updated_at"},
 			IsMaster: true,
 		},
+		{
+			Query: "SELECT customer_id, customer_name, email, phone, " +
+				"CAST(created_at AS VARCHAR), CAST(updated_at AS VARCHAR) FROM customers",
+			FileName: "customers.csv",
+			Header:   []string{"customer_id", "customer_name", "email", "phone", "created_at", "updated_at"},
+			IsMaster: true,
+		},
+		{
+			Query: "SELECT employee_id, employee_name, employee_role, outlet_id, employment_status, " +
+				"CAST(created_at AS VARCHAR), CAST(updated_at AS VARCHAR) FROM employees",
+			FileName: "employees.csv",
+			Header:   []string{"employee_id", "employee_name", "employee_role", "outlet_id", "employment_status", "created_at", "updated_at"},
+			IsMaster: true,
+		},
 	}
 
 	for _, q := range master_queries {
@@ -244,10 +258,10 @@ func main() {
 
 		tx_queries := []QueryFileName{
 			{
-				Query: "SELECT order_id, outlet_id, cashier_id, CAST(total_amount AS VARCHAR), payment_method, CAST(created_at AS VARCHAR) " +
+				Query: "SELECT order_id, customer_id, outlet_id, cashier_id, CAST(total_amount AS VARCHAR), payment_method, order_status, CAST(created_at AS VARCHAR) " +
 					"FROM orders WHERE created_at::date = $1",
 				FileName: "orders.csv",
-				Header:   []string{"order_id", "outlet_id", "cashier_id", "total_amount", "payment_method", "created_at"},
+				Header:   []string{"order_id", "customer_id", "outlet_id", "cashier_id", "total_amount", "payment_method", "order_status", "created_at"},
 				Args:     []interface{}{d.Format("2006-01-02")},
 				IsMaster: false,
 			},
@@ -256,6 +270,16 @@ func main() {
 					"FROM order_items oi JOIN orders o ON oi.order_id = o.order_id WHERE o.created_at::date = $1",
 				FileName: "order_items.csv",
 				Header:   []string{"item_id", "order_id", "menu_id", "quantity", "price_per_item", "subtotal"},
+				Args:     []interface{}{d.Format("2006-01-02")},
+				IsMaster: false,
+			},
+			{
+				Query: "SELECT p.payment_id, p.order_id, p.payment_method, p.payment_status, " +
+					"CAST(p.amount AS VARCHAR), CAST(p.paid_at AS VARCHAR), p.provider_reference " +
+					"FROM payments p JOIN orders o ON p.order_id = o.order_id " +
+					"WHERE o.created_at::date = $1",
+				FileName: "payments.csv",
+				Header:   []string{"payment_id", "order_id", "payment_method", "payment_status", "amount", "paid_at", "provider_reference"},
 				Args:     []interface{}{d.Format("2006-01-02")},
 				IsMaster: false,
 			},
