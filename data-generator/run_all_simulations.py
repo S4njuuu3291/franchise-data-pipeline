@@ -1,8 +1,12 @@
 from datetime import datetime, timedelta
+import logging
 import subprocess
 import yaml
 import os
 import sys
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 # Load konfigurasi dari file YAML
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -16,36 +20,31 @@ end_date = datetime.strptime(sim["end_date"], "%Y-%m-%d")
 
 current_date = start_date
 overall_start = datetime.now()
-print(f"=== MEMULAI RUNNER SIMULASI 3 BULAN FULL ===")
-print(f"🕐 Mulai: {overall_start.strftime('%Y-%m-%d %H:%M:%S')}")
-print()
+logger.info("=== MEMULAI RUNNER SIMULASI 3 BULAN FULL ===")
+logger.info("Mulai: %s", overall_start.strftime('%Y-%m-%d %H:%M:%S'))
 
 while current_date <= end_date:
     date_str = current_date.strftime("%Y-%m-%d")
     day_start = datetime.now()
-    print(f"[EXEC] Menjalankan generator untuk tanggal: {date_str}")
+    logger.info("Menjalankan generator untuk tanggal: %s", date_str)
     
     # Memanggil skrip generate_transactions.py via terminal secara otomatis
     cmd = [sys.executable, os.path.join(SCRIPT_DIR, "generate_transactions.py"), "--date", date_str]
-    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-    
-    # Cetak output dari skrip utama agar kita bisa memantau prosesnya
-    print(result.stdout)
-    if result.stderr:
-        print(f"WARNING/ERROR: {result.stderr}")
+    # Warisi stream agar log generator tampil langsung dengan level aslinya.
+    result = subprocess.run(cmd, check=False)
     if result.returncode != 0:
+        logger.error("Generator gagal untuk tanggal %s dengan exit code %d", date_str, result.returncode)
         raise RuntimeError(f"Generator gagal untuk tanggal {date_str} dengan exit code {result.returncode}")
     
     day_end = datetime.now()
     day_duration = (day_end - day_start).total_seconds()
-    print(f"✅ Selesai ({date_str}) — ⏱ {day_duration:.2f} detik")
-    print()
+    logger.info("Selesai (%s) — %.2f detik", date_str, day_duration)
         
     # Maju ke hari berikutnya
     current_date += timedelta(days=1)
 
 overall_end = datetime.now()
 total_duration = (overall_end - overall_start).total_seconds()
-print("=== SEMUA DATA TRANSAKSI 3 BULAN BERHASIL DIMASUKKAN ===")
-print(f"🕐 Selesai: {overall_end.strftime('%Y-%m-%d %H:%M:%S')}")
-print(f"⏱ Total waktu eksekusi: {total_duration:.2f} detik ({(total_duration/60):.2f} menit)")
+logger.info("=== SEMUA DATA TRANSAKSI 3 BULAN BERHASIL DIMASUKKAN ===")
+logger.info("Selesai: %s", overall_end.strftime('%Y-%m-%d %H:%M:%S'))
+logger.info("Total waktu eksekusi: %.2f detik (%.2f menit)", total_duration, total_duration / 60)

@@ -1,4 +1,5 @@
 import argparse
+import logging
 import random
 import yaml
 import os
@@ -6,6 +7,8 @@ from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import execute_values
 from psycopg2 import sql
+
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_SCHEMA = os.getenv("DB_SCHEMA", "public")
@@ -130,7 +133,7 @@ def generate_daily_data(target_date_str):
     
     outlets, menus, employees_by_outlet, customer_ids = fetch_master_data(cursor)
     if not outlets or not menus or not employees_by_outlet or not customer_ids:
-        print("CRITICAL: Data master belum lengkap. Jalankan seed-master.py terlebih dahulu!")
+        logger.critical("Data master belum lengkap. Jalankan seed-master.py terlebih dahulu!")
         return
 
     # Ambil last order_id untuk kelanjutan sequence transaksi agar tidak tabrakan PK
@@ -158,7 +161,7 @@ def generate_daily_data(target_date_str):
     # --- ANOMALI 2: Tentukan 1 Outlet acak untuk terkena DATA SKEW (Spike 5x lipat) ---
     skewed_outlet_id = random.choice(outlets)["id"]
     
-    print(f"-> Memproses simulasi transaksi untuk tanggal: {target_date_str} (Weekend: {is_weekend})")
+    logger.info("Memproses simulasi transaksi untuk tanggal: %s (Weekend: %s)", target_date_str, is_weekend)
     
     # Loop Utama melewati 1.000 Outlet
     for outlet in outlets:
@@ -277,7 +280,7 @@ def generate_daily_data(target_date_str):
     # =========================================================================
     # 3. BULK INGESTION INTO POSTGRESQL
     # =========================================================================
-    print(f"-> Memulai injeksi ke Postgres ({len(orders_buffer)} orders, {len(items_buffer)} items)...")
+    logger.info("Memulai injeksi ke Postgres (%d orders, %d items)...", len(orders_buffer), len(items_buffer))
     try:
         query_orders = sql.SQL("""
             INSERT INTO {} (order_id, customer_id, outlet_id, cashier_id, total_amount, payment_method, order_status, created_at)
@@ -297,17 +300,18 @@ def generate_daily_data(target_date_str):
         execute_values(cursor, query_payments, payments_buffer)
         conn.commit()
         
-        print(f"SUCCESS: [{target_date_str}] Tanam {len(orders_buffer)} orders, {len(items_buffer)} items, dan {len(payments_buffer)} payments.")
-        print(f"INFO: Outlet ID {skewed_outlet_id} mengalami lonjakan (Skew Spike) hari ini.\n")
+        logger.info("[%s] Tanam %d orders, %d items, dan %d payments.", target_date_str, len(orders_buffer), len(items_buffer), len(payments_buffer))
+        logger.info("Outlet ID %s mengalami lonjakan (Skew Spike) hari ini.", skewed_outlet_id)
         
-    except Exception as e:
+    except Exception:
         conn.rollback()
-        print(f"ERROR: Gagal memproses transaksi pada {target_date_str}: {e}")
+        logger.exception("Gagal memproses transaksi pada %s", target_date_str)
     finally:
         cursor.close()
         conn.close()
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     parser = argparse.ArgumentParser(description="Enterprise Transaction Data Generator CLI")
     parser.add_argument("--date", required=True, help="Format tanggal target: YYYY-MM-DD")
     args = parser.parse_args()

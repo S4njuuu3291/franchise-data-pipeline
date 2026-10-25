@@ -1,10 +1,13 @@
 import os
+import logging
 import random
 from datetime import datetime
 from faker import Faker
 import psycopg2
 from psycopg2.extras import execute_values
 from psycopg2 import sql
+
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_SCHEMA = os.getenv("DB_SCHEMA", "public")
@@ -106,7 +109,7 @@ def get_db_connection():
     )
 
 def seed_outlets(cursor):
-    print(f"-> Men-generate {OUTLET_COUNT} data outlet_master pada schema {DB_SCHEMA}...")
+    logger.info("Men-generate %d data outlet_master pada schema %s...", OUTLET_COUNT, DB_SCHEMA)
     fake = Faker("id_ID")
     outlets_data = []
 
@@ -131,11 +134,11 @@ def seed_outlets(cursor):
         ON CONFLICT (outlet_id) DO NOTHING;
     """).format(sql.Identifier(DB_SCHEMA, "outlet_master"))
     execute_values(cursor, query, outlets_data)
-    print(f"SUCCESS: {len(outlets_data)} outlet berhasil ditanam.")
+    logger.info("%d outlet berhasil ditanam.", len(outlets_data))
     return [{"id": row[0], "tier": row[3]} for row in outlets_data]
 
 def seed_menu_master(cursor):
-    print("-> Men-generate 40 data menu_master dengan skema Columnar Pricing...")
+    logger.info("Men-generate 40 data menu_master dengan skema Columnar Pricing...")
     menus_data = []
     
     for idx, menu in enumerate(MENU_TEMPLATES, start=1):
@@ -157,11 +160,11 @@ def seed_menu_master(cursor):
         ON CONFLICT (menu_id) DO NOTHING;
     """).format(sql.Identifier(DB_SCHEMA, "menu_master"))
     execute_values(cursor, query, menus_data)
-    print(f"SUCCESS: {len(menus_data)} baris menu master berhasil ditanam.")
+    logger.info("%d baris menu master berhasil ditanam.", len(menus_data))
 
 def seed_customers(cursor):
     """Seed customer dengan email unik dan ID deterministik."""
-    print(f"-> Men-generate {CUSTOMER_COUNT} data customers...")
+    logger.info("Men-generate %d data customers...", CUSTOMER_COUNT)
     fake = Faker("id_ID")
     customers_data = []
 
@@ -181,7 +184,7 @@ def seed_customers(cursor):
         ON CONFLICT (customer_id) DO NOTHING;
     """).format(sql.Identifier(DB_SCHEMA, "customers"))
     execute_values(cursor, query, customers_data)
-    print(f"SUCCESS: {len(customers_data)} customer berhasil ditanam.")
+    logger.info("%d customer berhasil ditanam.", len(customers_data))
     return [row[0] for row in customers_data]
 
 def seed_employees(cursor, outlets):
@@ -213,11 +216,11 @@ def seed_employees(cursor, outlets):
         ON CONFLICT (employee_id) DO NOTHING;
     """).format(sql.Identifier(DB_SCHEMA, "employees"))
     execute_values(cursor, query, employees_data)
-    print(f"SUCCESS: {len(employees_data)} employee berhasil ditanam.")
+    logger.info("%d employee berhasil ditanam.", len(employees_data))
     return [row[0] for row in employees_data]
 
 def main():
-    print("=== MEMULAI PROSES SEEDING DATA MASTER HULU ===")
+    logger.info("=== MEMULAI PROSES SEEDING DATA MASTER HULU ===")
     start_time = datetime.now()
     conn = None
     try:
@@ -230,15 +233,16 @@ def main():
             conn.commit()
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
-            print(f"=== SEEDING SELESAI: DATABASE UTAMA SIAP ===")
-            print(f"⏱  Waktu eksekusi: {duration:.2f} detik")
-    except Exception as e:
+            logger.info("=== SEEDING SELESAI: DATABASE UTAMA SIAP ===")
+            logger.info("Waktu eksekusi: %.2f detik", duration)
+    except Exception:
         if conn:
             conn.rollback()
-        print(f"CRITICAL ERROR: Proses seeding gagal akibat: {e}")
+        logger.critical("Proses seeding gagal", exc_info=True)
     finally:
         if conn:
             conn.close()
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     main()
