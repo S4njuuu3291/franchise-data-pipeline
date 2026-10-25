@@ -96,54 +96,14 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
 
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        # 1. Bersihkan folder data terlebih dahulu agar initdb bawaan Postgres tidak protes
-        if [ ! -s /var/lib/postgresql/data/PG_VERSION ]; then
-          echo "Cleaning up directory for fresh initdb..."
-          rm -rf /var/lib/postgresql/data/* /var/lib/postgresql/data/.[!.]*
-        fi
-
-        # PostgreSQL hanya menerima private key milik root atau user database.
-        cp /etc/postgresql/tls/server.crt /tmp/server.crt
-        cp /etc/postgresql/tls/server.key /tmp/server.key
-        chown postgres:postgres /tmp/server.crt /tmp/server.key
-        chmod 0644 /tmp/server.crt
-        chmod 0600 /tmp/server.key
-
-        # 2. Jalankan inisialisasi Postgres asli di latar belakang secara singkat
-        docker-entrypoint.sh postgres \
-          -c ssl=on \
-          -c ssl_cert_file=/tmp/server.crt \
-          -c ssl_key_file=/tmp/server.key &
-        
-        # 3. Tunggu sampai folder data terisi oleh initdb asli
-        until [ -s /var/lib/postgresql/data/pg_hba.conf ]; do sleep 0.2; done
-        
-        # 4. Timpa pg_hba.conf dengan hak akses replikasi Anda
-        echo "hostssl replication primary_user samenet scram-sha-256" >> /var/lib/postgresql/data/pg_hba.conf
-        
-        # 5. Berikan sinyal reload agar Postgres membaca pg_hba.conf yang baru
-        until pg_isready -U primary_user; do sleep 0.2; done
-        psql -U primary_user -d postgres -c "SELECT pg_reload_conf();"
-
-        # Create the replica login on the primary so it is included in the base backup.
-        replica_password=$$(cat /run/secrets/postgres_replica_password)
-        PGPASSWORD="$$replica_password" psql -v ON_ERROR_STOP=1 -U primary_user -d postgres \
-          -c "DO \$\$ BEGIN
-                IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'replica_user') THEN
-                  CREATE ROLE replica_user LOGIN PASSWORD '$$replica_password';
-                ELSE
-                  ALTER ROLE replica_user LOGIN PASSWORD '$$replica_password';
-                END IF;
-              END \$\$;"
-        
-        echo "🚀 Primary with replication permissions is ready!"
-
-        # Keep this wrapper alive while PostgreSQL runs in the background.
-        wait
+    entrypoint: ["/bin/sh", "/usr/local/bin/primary.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/primary-ready && pg_isready -h 127.0.0.1 -U primary_user -d main_db"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
     volumes:
+      - ./scripts/primary.sh:/usr/local/bin/primary.sh:ro
       - primary_data:/var/lib/postgresql/data
       - ./certs/server.crt:/etc/postgresql/tls/server.crt:ro
       - ./certs/server.key:/etc/postgresql/tls/server.key:ro
@@ -166,38 +126,16 @@ services:
       - "127.0.0.1:5433:5432"
 
     depends_on:
-      - postgres-primary
-    entrypoint: [ "/bin/sh", "-c" ]
-    command:
-      - |
-        echo "Waiting for primary to be ready..."
-        until pg_isready -h postgres-primary -p 5432 -U primary_user; do sleep 0.2; done
-        
-        if [ ! -s /var/lib/postgresql/data/PG_VERSION ]; then
-          echo "Clearing data directory for clean clone..."
-          rm -rf /var/lib/postgresql/data/* /var/lib/postgresql/data/.[!.]*
-          echo "Cloning primary database..."
-          PGPASSWORD=$$(cat /run/secrets/postgres_primary_password) \
-            pg_basebackup "host=postgres-primary port=5432 user=primary_user dbname=replication sslmode=require" \
-            -D /var/lib/postgresql/data -v -P -R -X stream
-        fi
-
-        # TLS wajib untuk koneksi client ke replica.
-        cp /etc/postgresql/tls/server.crt /tmp/server.crt
-        cp /etc/postgresql/tls/server.key /tmp/server.key
-        chown postgres:postgres /tmp/server.crt /tmp/server.key
-        chmod 0644 /tmp/server.crt
-        chmod 0600 /tmp/server.key
-        
-        chown -R postgres:postgres /var/lib/postgresql/data
-        chmod 0700 /var/lib/postgresql/data
-        
-        echo "Starting replica..."
-        exec su-exec postgres postgres \
-          -c ssl=on \
-          -c ssl_cert_file=/tmp/server.crt \
-          -c ssl_key_file=/tmp/server.key
+      postgres-primary:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/usr/local/bin/replica.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U replica_user -d main_db"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
     volumes:
+      - ./scripts/replica.sh:/usr/local/bin/replica.sh:ro
       - replica_data:/var/lib/postgresql/data
       - ./certs/server.crt:/etc/postgresql/tls/server.crt:ro
       - ./certs/server.key:/etc/postgresql/tls/server.key:ro
