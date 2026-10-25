@@ -21,10 +21,14 @@ docker-build:
 	docker compose -f $(COMPOSE_FILE) build
 
 docker-up:
-	docker compose -f $(COMPOSE_FILE) up -d
+# 	docker compose --env-file .env -f $(COMPOSE_FILE) run --rm airflow-init
+	docker compose --env-file .env -f $(COMPOSE_FILE) up -d
+
+# docker-up-service:
+# 	docker compose -f $(COMPOSE_FILE) up -d
 
 docker-up-db:
-	docker compose -f $(COMPOSE_FILE) up -d postgres-primary postgres-replica postgres gx-metadata-db
+	docker compose -f $(COMPOSE_FILE) up -d postgres-primary postgres-replica
 
 docker-down:
 	docker compose -f $(COMPOSE_FILE) down
