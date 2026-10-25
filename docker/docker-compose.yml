@@ -61,8 +61,8 @@ services:
   # ==========================================================
   glue:
     image: public.ecr.aws/glue/aws-glue-libs:5
-    profiles:
-      - glue
+    # profiles:
+      # - glue
     # Local-only development container: needed to read host ~/.aws files
     # whose permissions are commonly 0600 and owned by the host user.
     user: "0:0"
