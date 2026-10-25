@@ -61,8 +61,8 @@ services:
   # ==========================================================
   glue:
     image: public.ecr.aws/glue/aws-glue-libs:5
-    profiles:
-      - glue
+    # profiles:
+      # - glue
     # Local-only development container: needed to read host ~/.aws files
     # whose permissions are commonly 0600 and owned by the host user.
     user: "0:0"
@@ -96,54 +96,14 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
 
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        # 1. Bersihkan folder data terlebih dahulu agar initdb bawaan Postgres tidak protes
-        if [ ! -s /var/lib/postgresql/data/PG_VERSION ]; then
-          echo "Cleaning up directory for fresh initdb..."
-          rm -rf /var/lib/postgresql/data/* /var/lib/postgresql/data/.[!.]*
-        fi
-
-        # PostgreSQL hanya menerima private key milik root atau user database.
-        cp /etc/postgresql/tls/server.crt /tmp/server.crt
-        cp /etc/postgresql/tls/server.key /tmp/server.key
-        chown postgres:postgres /tmp/server.crt /tmp/server.key
-        chmod 0644 /tmp/server.crt
-        chmod 0600 /tmp/server.key
-
-        # 2. Jalankan inisialisasi Postgres asli di latar belakang secara singkat
-        docker-entrypoint.sh postgres \
-          -c ssl=on \
-          -c ssl_cert_file=/tmp/server.crt \
-          -c ssl_key_file=/tmp/server.key &
-        
-        # 3. Tunggu sampai folder data terisi oleh initdb asli
-        until [ -s /var/lib/postgresql/data/pg_hba.conf ]; do sleep 0.2; done
-        
-        # 4. Timpa pg_hba.conf dengan hak akses replikasi Anda
-        echo "hostssl replication primary_user samenet scram-sha-256" >> /var/lib/postgresql/data/pg_hba.conf
-        
-        # 5. Berikan sinyal reload agar Postgres membaca pg_hba.conf yang baru
-        until pg_isready -U primary_user; do sleep 0.2; done
-        psql -U primary_user -d postgres -c "SELECT pg_reload_conf();"
-
-        # Create the replica login on the primary so it is included in the base backup.
-        replica_password=$$(cat /run/secrets/postgres_replica_password)
-        PGPASSWORD="$$replica_password" psql -v ON_ERROR_STOP=1 -U primary_user -d postgres \
-          -c "DO \$\$ BEGIN
-                IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'replica_user') THEN
-                  CREATE ROLE replica_user LOGIN PASSWORD '$$replica_password';
-                ELSE
-                  ALTER ROLE replica_user LOGIN PASSWORD '$$replica_password';
-                END IF;
-              END \$\$;"
-        
-        echo "🚀 Primary with replication permissions is ready!"
-
-        # Keep this wrapper alive while PostgreSQL runs in the background.
-        wait
+    entrypoint: ["/bin/sh", "/usr/local/bin/primary.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/primary-ready && pg_isready -h 127.0.0.1 -U primary_user -d main_db"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
     volumes:
+      - ./scripts/primary.sh:/usr/local/bin/primary.sh:ro
       - primary_data:/var/lib/postgresql/data
       - ./certs/server.crt:/etc/postgresql/tls/server.crt:ro
       - ./certs/server.key:/etc/postgresql/tls/server.key:ro
@@ -166,38 +126,16 @@ services:
       - "127.0.0.1:5433:5432"
 
     depends_on:
-      - postgres-primary
-    entrypoint: [ "/bin/sh", "-c" ]
-    command:
-      - |
-        echo "Waiting for primary to be ready..."
-        until pg_isready -h postgres-primary -p 5432 -U primary_user; do sleep 0.2; done
-        
-        if [ ! -s /var/lib/postgresql/data/PG_VERSION ]; then
-          echo "Clearing data directory for clean clone..."
-          rm -rf /var/lib/postgresql/data/* /var/lib/postgresql/data/.[!.]*
-          echo "Cloning primary database..."
-          PGPASSWORD=$$(cat /run/secrets/postgres_primary_password) \
-            pg_basebackup "host=postgres-primary port=5432 user=primary_user dbname=replication sslmode=require" \
-            -D /var/lib/postgresql/data -v -P -R -X stream
-        fi
-
-        # TLS wajib untuk koneksi client ke replica.
-        cp /etc/postgresql/tls/server.crt /tmp/server.crt
-        cp /etc/postgresql/tls/server.key /tmp/server.key
-        chown postgres:postgres /tmp/server.crt /tmp/server.key
-        chmod 0644 /tmp/server.crt
-        chmod 0600 /tmp/server.key
-        
-        chown -R postgres:postgres /var/lib/postgresql/data
-        chmod 0700 /var/lib/postgresql/data
-        
-        echo "Starting replica..."
-        exec su-exec postgres postgres \
-          -c ssl=on \
-          -c ssl_cert_file=/tmp/server.crt \
-          -c ssl_key_file=/tmp/server.key
+      postgres-primary:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "/usr/local/bin/replica.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U replica_user -d main_db"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
     volumes:
+      - ./scripts/replica.sh:/usr/local/bin/replica.sh:ro
       - replica_data:/var/lib/postgresql/data
       - ./certs/server.crt:/etc/postgresql/tls/server.crt:ro
       - ./certs/server.key:/etc/postgresql/tls/server.key:ro
@@ -300,7 +238,12 @@ services:
     volumes:
       - grafana-franchise:/var/lib/grafana
       - ../grafana-config/provisioning:/etc/grafana/provisioning:ro
-      - ./grafana-entrypoint.sh:/usr/local/bin/grafana-entrypoint.sh:ro
+      - type: bind
+        source: ./grafana-entrypoint.sh
+        target: /usr/local/bin/grafana-entrypoint.sh
+        read_only: true
+        bind:
+          create_host_path: false
     # User 472 adalah user standard internal Grafana.
     # user: "472"
     deploy:
@@ -425,16 +368,8 @@ services:
     command:
       - -c
       - |
-        if [[ -z "${AIRFLOW_UID}" ]]; then
-          echo
-          echo -e "\033[1;33mWARNING!!!: AIRFLOW_UID not set!\e[0m"
-          echo "If you are on Linux, you SHOULD follow the instructions below to set "
-          echo "AIRFLOW_UID environment variable, otherwise files will be owned by root."
-          echo "For other operating systems you can get rid of the warning with manually created .env file:"
-          echo "    See: https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html#setting-the-right-airflow-user"
-          echo
-          export AIRFLOW_UID=$$(id -u)
-        fi
+        set -e
+        export AIRFLOW_UID="${AIRFLOW_UID:-1000}"
         one_meg=1048576
         mem_available=$$(($$(getconf _PHYS_PAGES) * $$(getconf PAGE_SIZE) / one_meg))
         cpus_available=$$(grep -cE 'cpu[0-9]+' /proc/stat)
@@ -488,13 +423,9 @@ services:
         echo
         ls -la /opt/airflow/{logs,dags,plugins,config}
         echo
-        echo "Change ownership of files in /opt/airflow to ${AIRFLOW_UID}:0"
-        echo
-        chown -R "${AIRFLOW_UID}:0" /opt/airflow/
-        echo
-        echo "Change ownership of files in shared volumes to ${AIRFLOW_UID}:0"
-        echo
-        chown -v -R "${AIRFLOW_UID}:0" /opt/airflow/{logs,dags,plugins,config}
+        echo "Preparing shared directories for UID $$AIRFLOW_UID"
+        chown -R "$$AIRFLOW_UID:0" /opt/airflow/{logs,dags,plugins,config}
+        chmod -R u+rwX,g+rwX /opt/airflow/logs
         echo
         echo "Files in shared volumes:"
         echo

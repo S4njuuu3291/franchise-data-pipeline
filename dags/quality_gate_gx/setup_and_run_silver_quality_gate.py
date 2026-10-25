@@ -47,268 +47,273 @@ def connect_to_gx_metadata_db():
         sslmode=os.environ.get("GX_METADATA_SSLMODE", "require"),
     )
 
-parser = argparse.ArgumentParser(description="Run the GX Silver quality gate")
-parser.add_argument("--date", required=True, help="Tanggal data dengan format YYYY-MM-DD")
-args = parser.parse_args()
+def main():
+    parser = argparse.ArgumentParser(description="Run the GX Silver quality gate")
+    parser.add_argument("--date", required=True, help="Tanggal data dengan format YYYY-MM-DD")
+    args = parser.parse_args()
 
-execution_date = datetime.strptime(args.date, "%Y-%m-%d")
-year = execution_date.strftime("%Y")
-month = execution_date.strftime("%m")
-day = execution_date.strftime("%d")
+    execution_date = datetime.strptime(args.date, "%Y-%m-%d")
+    year = execution_date.strftime("%Y")
+    month = execution_date.strftime("%m")
+    day = execution_date.strftime("%d")
 
-# ── 2. LOAD CONFIGURATION ─────────────────────────────────────────────
-config_path = os.environ.get("PIPELINE_CONFIG_PATH") or os.path.join(
-    os.path.dirname(__file__), "../../config/pipeline-config.yaml"
-)
-with open(config_path) as config_file:
-    config = yaml.safe_load(config_file)["storage"]
+    # ── 2. LOAD CONFIGURATION ─────────────────────────────────────────────
+    config_path = os.environ.get("PIPELINE_CONFIG_PATH") or os.path.join(
+        os.path.dirname(__file__), "../../config/pipeline-config.yaml"
+    )
+    with open(config_path) as config_file:
+        config = yaml.safe_load(config_file)["storage"]
 
-# Alamat S3 menggunakan protokol s3a://
-bucket_base = f"s3a://{config['silver']}"
+    # Alamat S3 menggunakan protokol s3a://
+    bucket_base = f"s3a://{config['silver']}"
 
-# ── 3. INISIALISASI SPARK SESSION DENGAN CONFIG S3A UTUH ──────────────
-# Di sini kuncinya: kita sertakan packages maven agar Spark otomatis mendownload JAR runtime ke laptop
-spark = SparkSession.builder \
-    .appName("GX_Silver_Validation") \
-    .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262") \
-    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
-    .config("spark.hadoop.fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain") \
-    .config("spark.hadoop.fs.s3a.connection.timeout", "60000") \
-    .config("spark.hadoop.fs.s3a.connection.establish.timeout", "60000") \
-    .config("spark.hadoop.fs.s3a.connection.socket.timeout", "60000") \
-    .config("spark.hadoop.fs.s3a.threads.keepalivetime", "60") \
-    .config("spark.hadoop.fs.s3a.multipart.purge.age", "86400") \
-    .config("spark.hadoop.fs.s3a.connection.acquisition.timeout", "60000") \
-    .config("spark.hadoop.fs.s3a.connection.idle.time", "60000") \
-    .config("spark.hadoop.fs.s3a.connection.request.timeout", "60000") \
-    .config("spark.hadoop.fs.s3a.connection.ttl", "300000") \
-    .getOrCreate()
+    # ── 3. INISIALISASI SPARK SESSION DENGAN CONFIG S3A UTUH ──────────────
+    # Di sini kuncinya: kita sertakan packages maven agar Spark otomatis mendownload JAR runtime ke laptop
+    spark = SparkSession.builder \
+        .appName("GX_Silver_Validation") \
+        .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262") \
+        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
+        .config("spark.hadoop.fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain") \
+        .config("spark.hadoop.fs.s3a.connection.timeout", "60000") \
+        .config("spark.hadoop.fs.s3a.connection.establish.timeout", "60000") \
+        .config("spark.hadoop.fs.s3a.connection.socket.timeout", "60000") \
+        .config("spark.hadoop.fs.s3a.threads.keepalivetime", "60") \
+        .config("spark.hadoop.fs.s3a.multipart.purge.age", "86400") \
+        .config("spark.hadoop.fs.s3a.connection.acquisition.timeout", "60000") \
+        .config("spark.hadoop.fs.s3a.connection.idle.time", "60000") \
+        .config("spark.hadoop.fs.s3a.connection.request.timeout", "60000") \
+        .config("spark.hadoop.fs.s3a.connection.ttl", "300000") \
+        .getOrCreate()
 
-# ── 4. INITIALIZE GX CONTEXT & IKAT SPARK SESSION ─────────────────────
-gx_context_root = Path(__file__).resolve().parent / "gx"
-gx_context_root.mkdir(parents=True, exist_ok=True)
-context = gx.get_context(
-    mode="file",
-    context_root_dir=str(gx_context_root),
-)
+    # ── 4. INITIALIZE GX CONTEXT & IKAT SPARK SESSION ─────────────────────
+    gx_context_root = Path(__file__).resolve().parent / "gx"
+    gx_context_root.mkdir(parents=True, exist_ok=True)
+    context = gx.get_context(
+        mode="file",
+        context_root_dir=str(gx_context_root),
+    )
 
-# Bersihkan sisa datasource lama jika ada
-for old_ds in ["silver_spark_data", "silver_in_memory_data"]:
-    try:
-        context.data_sources.delete(name=old_ds)
-    except ValueError:
-        pass
+    # Bersihkan sisa datasource lama jika ada
+    for old_ds in ["silver_spark_data", "silver_in_memory_data"]:
+        try:
+            context.data_sources.delete(name=old_ds)
+        except ValueError:
+            pass
 
-# GX membuat Spark Data Source sendiri dan menggunakan Spark context aktif.
-# Parameter `spark` bukan parameter valid pada GX Core 1.x.
-datasource = context.data_sources.add_spark(
-    name="silver_in_memory_data",
-    force_reuse_spark_context=True,
-)
+    # GX membuat Spark Data Source sendiri dan menggunakan Spark context aktif.
+    # Parameter `spark` bukan parameter valid pada GX Core 1.x.
+    datasource = context.data_sources.add_spark(
+        name="silver_in_memory_data",
+        force_reuse_spark_context=True,
+    )
 
-# ── 5. DAFTARKAN DIRECTORY ASSETS LEWAT SPARK S3A ─────────────────────
-logger.info("Membaca data Silver Parquet langsung dari S3 via Spark S3A...")
-df_menu = spark.read.parquet(f"{bucket_base}/menu_master/")
-df_outlet = spark.read.parquet(f"{bucket_base}/outlet_master/")
-df_customers = spark.read.parquet(f"{bucket_base}/customers/")
-df_employees = spark.read.parquet(f"{bucket_base}/employees/")
+    # ── 5. DAFTARKAN DIRECTORY ASSETS LEWAT SPARK S3A ─────────────────────
+    logger.info("Membaca data Silver Parquet langsung dari S3 via Spark S3A...")
+    df_menu = spark.read.parquet(f"{bucket_base}/menu_master/")
+    df_outlet = spark.read.parquet(f"{bucket_base}/outlet_master/")
+    df_customers = spark.read.parquet(f"{bucket_base}/customers/")
+    df_employees = spark.read.parquet(f"{bucket_base}/employees/")
 
-orders_path = f"{bucket_base}/orders/year={year}/month={month}/day={day}/"
-order_items_path = f"{bucket_base}/order_items/year={year}/month={month}/day={day}/"
-payments_path = f"{bucket_base}/payments/year={year}/month={month}/day={day}/"
-df_orders = spark.read.parquet(orders_path)
-df_order_items = spark.read.parquet(order_items_path)
-df_payments = spark.read.parquet(payments_path)
+    orders_path = f"{bucket_base}/orders/year={year}/month={month}/day={day}/"
+    order_items_path = f"{bucket_base}/order_items/year={year}/month={month}/day={day}/"
+    payments_path = f"{bucket_base}/payments/year={year}/month={month}/day={day}/"
+    df_orders = spark.read.parquet(orders_path)
+    df_order_items = spark.read.parquet(order_items_path)
+    df_payments = spark.read.parquet(payments_path)
 
-# Daftarkan ke GX sebagai Dataframe Asset
-menu_asset = datasource.add_dataframe_asset(name="menu_silver_asset")
-outlet_asset = datasource.add_dataframe_asset(name="outlet_silver_asset")
-customers_asset = datasource.add_dataframe_asset(name="customers_silver_asset")
-employees_asset = datasource.add_dataframe_asset(name="employees_silver_asset")
-orders_asset = datasource.add_dataframe_asset(name="orders_silver_asset")
-order_items_asset = datasource.add_dataframe_asset(name="order_items_silver_asset")
-payments_asset = datasource.add_dataframe_asset(name="payments_silver_asset")
+    # Daftarkan ke GX sebagai Dataframe Asset
+    menu_asset = datasource.add_dataframe_asset(name="menu_silver_asset")
+    outlet_asset = datasource.add_dataframe_asset(name="outlet_silver_asset")
+    customers_asset = datasource.add_dataframe_asset(name="customers_silver_asset")
+    employees_asset = datasource.add_dataframe_asset(name="employees_silver_asset")
+    orders_asset = datasource.add_dataframe_asset(name="orders_silver_asset")
+    order_items_asset = datasource.add_dataframe_asset(name="order_items_silver_asset")
+    payments_asset = datasource.add_dataframe_asset(name="payments_silver_asset")
 
-# Definisikan Batch
-menu_definition = menu_asset.add_batch_definition_whole_dataframe(name="menu_def")
-outlet_definition = outlet_asset.add_batch_definition_whole_dataframe(name="outlet_def")
-customers_definition = customers_asset.add_batch_definition_whole_dataframe(name="customers_def")
-employees_definition = employees_asset.add_batch_definition_whole_dataframe(name="employees_def")
-orders_definition = orders_asset.add_batch_definition_whole_dataframe(name="orders_def")
-order_items_definition = order_items_asset.add_batch_definition_whole_dataframe(name="order_items_def")
-payments_definition = payments_asset.add_batch_definition_whole_dataframe(name="payments_def")
+    # Definisikan Batch
+    menu_definition = menu_asset.add_batch_definition_whole_dataframe(name="menu_def")
+    outlet_definition = outlet_asset.add_batch_definition_whole_dataframe(name="outlet_def")
+    customers_definition = customers_asset.add_batch_definition_whole_dataframe(name="customers_def")
+    employees_definition = employees_asset.add_batch_definition_whole_dataframe(name="employees_def")
+    orders_definition = orders_asset.add_batch_definition_whole_dataframe(name="orders_def")
+    order_items_definition = order_items_asset.add_batch_definition_whole_dataframe(name="order_items_def")
+    payments_definition = payments_asset.add_batch_definition_whole_dataframe(name="payments_def")
 
-# Ambil Batch dengan menyertakan runtime dataframe yang dibaca lewat S3A tadi
-# ── 6. CREATE EXPECTATION SUITES ──────────────────────────────────────
-def add_smoke_suite(name, columns, key_columns):
-    suite = gx.ExpectationSuite(name=name)
-    suite.add_expectation(gx.expectations.ExpectTableColumnsToMatchSet(column_set=columns, exact_match=True))
-    suite.add_expectation(gx.expectations.ExpectTableRowCountToBeBetween(min_value=1))
-    for column in key_columns:
-        suite.add_expectation(gx.expectations.ExpectColumnValuesToNotBeNull(column=column))
-    context.suites.add_or_update(suite)
-    return suite
+    # Ambil Batch dengan menyertakan runtime dataframe yang dibaca lewat S3A tadi
+    # ── 6. CREATE EXPECTATION SUITES ──────────────────────────────────────
+    def add_smoke_suite(name, columns, key_columns):
+        suite = gx.ExpectationSuite(name=name)
+        suite.add_expectation(gx.expectations.ExpectTableColumnsToMatchSet(column_set=columns, exact_match=True))
+        suite.add_expectation(gx.expectations.ExpectTableRowCountToBeBetween(min_value=1))
+        for column in key_columns:
+            suite.add_expectation(gx.expectations.ExpectColumnValuesToNotBeNull(column=column))
+        context.suites.add_or_update(suite)
+        return suite
 
-menu_suite = add_smoke_suite(
-    "silver_menu_master_suite",
-    ["menu_id", "menu_name", "category", "base_price", "price_tier_1", "price_tier_2", "price_tier_3", "is_promo_active", "updated_at"],
-    ["menu_id"],
-)
-outlet_suite = add_smoke_suite(
-    "silver_outlet_master_suite",
-    ["outlet_id", "outlet_name", "city", "region_tier", "created_at", "updated_at"],
-    ["outlet_id"],
-)
-customers_suite = add_smoke_suite(
-    "silver_customers_suite",
-    ["customer_id", "customer_name", "email", "phone", "created_at", "updated_at"],
-    ["customer_id"],
-)
-employees_suite = add_smoke_suite(
-    "silver_employees_suite",
-    [
-        "employee_id",
-        "employee_name",
-        "employee_role",
-        "outlet_id",
-        "employment_status",
-        "created_at",
-        "updated_at",
-    ],
-    ["employee_id", "outlet_id"],
-)
-orders_suite = add_smoke_suite(
-    "silver_orders_suite",
-    ["order_id", "customer_id", "outlet_id", "cashier_id", "total_amount", "payment_method", "order_status", "created_at", "data_quality_status"],
-    ["order_id", "outlet_id", "created_at"],
-)
-order_items_suite = add_smoke_suite(
-    "silver_order_items_suite",
-    ["item_id", "order_id", "menu_id", "quantity", "price_per_item", "subtotal"],
-    ["item_id", "order_id", "menu_id"],
-)
-payments_suite = add_smoke_suite(
-    "silver_payments_suite",
-    [
-        "payment_id",
-        "order_id",
-        "payment_method",
-        "payment_status",
-        "amount",
-        "paid_at",
-        "provider_reference",
-    ],
-    [],
-)
+    menu_suite = add_smoke_suite(
+        "silver_menu_master_suite",
+        ["menu_id", "menu_name", "category", "base_price", "price_tier_1", "price_tier_2", "price_tier_3", "is_promo_active", "updated_at"],
+        ["menu_id"],
+    )
+    outlet_suite = add_smoke_suite(
+        "silver_outlet_master_suite",
+        ["outlet_id", "outlet_name", "city", "region_tier", "created_at", "updated_at"],
+        ["outlet_id"],
+    )
+    customers_suite = add_smoke_suite(
+        "silver_customers_suite",
+        ["customer_id", "customer_name", "email", "phone", "created_at", "updated_at"],
+        ["customer_id"],
+    )
+    employees_suite = add_smoke_suite(
+        "silver_employees_suite",
+        [
+            "employee_id",
+            "employee_name",
+            "employee_role",
+            "outlet_id",
+            "employment_status",
+            "created_at",
+            "updated_at",
+        ],
+        ["employee_id", "outlet_id"],
+    )
+    orders_suite = add_smoke_suite(
+        "silver_orders_suite",
+        ["order_id", "customer_id", "outlet_id", "cashier_id", "total_amount", "payment_method", "order_status", "created_at", "data_quality_status"],
+        ["order_id", "outlet_id", "created_at"],
+    )
+    order_items_suite = add_smoke_suite(
+        "silver_order_items_suite",
+        ["item_id", "order_id", "menu_id", "quantity", "price_per_item", "subtotal"],
+        ["item_id", "order_id", "menu_id"],
+    )
+    payments_suite = add_smoke_suite(
+        "silver_payments_suite",
+        [
+            "payment_id",
+            "order_id",
+            "payment_method",
+            "payment_status",
+            "amount",
+            "paid_at",
+            "provider_reference",
+        ],
+        [],
+    )
 
-# ── 7. VALIDATION DEFINITIONS & CHECKPOINT SETUP ──────────────────────
-definitions = [
-    gx.ValidationDefinition(name="silver_menu_master_runtime_validation", suite=menu_suite, data=menu_definition),
-    gx.ValidationDefinition(name="silver_outlet_master_runtime_validation", suite=outlet_suite, data=outlet_definition),
-    gx.ValidationDefinition(name="silver_customers_runtime_validation", suite=customers_suite, data=customers_definition),
-    gx.ValidationDefinition(name="silver_employees_runtime_validation", suite=employees_suite, data=employees_definition),
-    gx.ValidationDefinition(name="silver_orders_runtime_validation", suite=orders_suite, data=orders_definition),
-    gx.ValidationDefinition(name="silver_order_items_runtime_validation", suite=order_items_suite, data=order_items_definition),
-    gx.ValidationDefinition(name="silver_payments_runtime_validation", suite=payments_suite, data=payments_definition),
-]
-for definition in definitions:
-    context.validation_definitions.add_or_update(definition)
-
-checkpoint = gx.Checkpoint(
-    name="silver_runtime_quality_gate_checkpoint",
-    validation_definitions=definitions,
-    actions=[
-        gx.checkpoint.actions.UpdateDataDocsAction(name="update_data_docs", site_names=[])
-    ],
-    result_format={"result_format": "SUMMARY"},
-)
-context.checkpoints.add_or_update(checkpoint)
-
-# ── 8. EXECUTE VALIDATIONS & BUILD DATA DOCS ──────────────────────────
-try:
-    logger.info("Menjalankan Validasi Silver quality gate...")
-    dataframes = [
-        df_menu,
-        df_outlet,
-        df_customers,
-        df_employees,
-        df_orders,
-        df_order_items,
-        df_payments,
+    # ── 7. VALIDATION DEFINITIONS & CHECKPOINT SETUP ──────────────────────
+    definitions = [
+        gx.ValidationDefinition(name="silver_menu_master_runtime_validation", suite=menu_suite, data=menu_definition),
+        gx.ValidationDefinition(name="silver_outlet_master_runtime_validation", suite=outlet_suite, data=outlet_definition),
+        gx.ValidationDefinition(name="silver_customers_runtime_validation", suite=customers_suite, data=customers_definition),
+        gx.ValidationDefinition(name="silver_employees_runtime_validation", suite=employees_suite, data=employees_definition),
+        gx.ValidationDefinition(name="silver_orders_runtime_validation", suite=orders_suite, data=orders_definition),
+        gx.ValidationDefinition(name="silver_order_items_runtime_validation", suite=order_items_suite, data=order_items_definition),
+        gx.ValidationDefinition(name="silver_payments_runtime_validation", suite=payments_suite, data=payments_definition),
     ]
-    with connect_to_gx_metadata_db() as metadata_connection:
-        results = []
-        for definition, dataframe in zip(definitions, dataframes):
-            validation_result = definition.run(batch_parameters={"dataframe": dataframe})
-            results.append(validation_result)
+    for definition in definitions:
+        context.validation_definitions.add_or_update(definition)
 
-            meta = getattr(validation_result, "meta", {}) or {}
-            run_id = meta.get("run_id")
-            execution_datetime = getattr(run_id, "run_time", None)
-            execution_date = (
-                execution_datetime.date()
-                if isinstance(execution_datetime, datetime)
-                else execution_datetime
-                if isinstance(execution_datetime, date)
-                else date.today()
-            )
-            statistics = getattr(validation_result, "statistics", {}) or {}
-            success_rate = statistics.get("success_percent", 0.0)
-            volume = 0
-            for individual_result in getattr(validation_result, "results", []) or []:
-                if individual_result.get("expectation_config", {}).get("type") == (
-                    "expect_table_row_count_to_be_between"
-                ):
-                    volume = individual_result.get("result", {}).get("observed_value", 0)
-                    break
+    checkpoint = gx.Checkpoint(
+        name="silver_runtime_quality_gate_checkpoint",
+        validation_definitions=definitions,
+        actions=[
+            gx.checkpoint.actions.UpdateDataDocsAction(name="update_data_docs", site_names=[])
+        ],
+        result_format={"result_format": "SUMMARY"},
+    )
+    context.checkpoints.add_or_update(checkpoint)
 
-            status = "SUCCESS" if validation_result.success else "FAILED"
-            asset_name = meta.get("active_batch_definition", {}).get(
-                "data_asset_name", definition.name
-            )
-            validation_id = ValidationResultIdentifier(
-                expectation_suite_identifier=ExpectationSuiteIdentifier(
-                    name=validation_result.suite_name
-                ),
-                run_id=run_id,
-                batch_identifier=validation_result.batch_id,
-            )
+    # ── 8. EXECUTE VALIDATIONS & BUILD DATA DOCS ──────────────────────────
+    try:
+        logger.info("Menjalankan Validasi Silver quality gate...")
+        dataframes = [
+            df_menu,
+            df_outlet,
+            df_customers,
+            df_employees,
+            df_orders,
+            df_order_items,
+            df_payments,
+        ]
+        with connect_to_gx_metadata_db() as metadata_connection:
+            results = []
+            for definition, dataframe in zip(definitions, dataframes):
+                validation_result = definition.run(batch_parameters={"dataframe": dataframe})
+                results.append(validation_result)
 
-            with metadata_connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO public.data_quality_ledger (
-                        validation_id, execution_date, stage, asset_name,
-                        volume, success_rate, status
-                    )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        str(validation_id),
-                        execution_date,
-                        "SILVER",
-                        asset_name,
-                        volume,
-                        success_rate,
-                        status,
+                meta = getattr(validation_result, "meta", {}) or {}
+                run_id = meta.get("run_id")
+                execution_datetime = getattr(run_id, "run_time", None)
+                execution_date = (
+                    execution_datetime.date()
+                    if isinstance(execution_datetime, datetime)
+                    else execution_datetime
+                    if isinstance(execution_datetime, date)
+                    else date.today()
+                )
+                statistics = getattr(validation_result, "statistics", {}) or {}
+                success_rate = statistics.get("success_percent", 0.0)
+                volume = 0
+                for individual_result in getattr(validation_result, "results", []) or []:
+                    if individual_result.get("expectation_config", {}).get("type") == (
+                        "expect_table_row_count_to_be_between"
+                    ):
+                        volume = individual_result.get("result", {}).get("observed_value", 0)
+                        break
+
+                status = "SUCCESS" if validation_result.success else "FAILED"
+                asset_name = meta.get("active_batch_definition", {}).get(
+                    "data_asset_name", definition.name
+                )
+                validation_id = ValidationResultIdentifier(
+                    expectation_suite_identifier=ExpectationSuiteIdentifier(
+                        name=validation_result.suite_name
                     ),
+                    run_id=run_id,
+                    batch_identifier=validation_result.batch_id,
                 )
 
-        metadata_connection.commit()
+                with metadata_connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        INSERT INTO public.data_quality_ledger (
+                            validation_id, execution_date, stage, asset_name,
+                            volume, success_rate, status
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            str(validation_id),
+                            execution_date,
+                            "SILVER",
+                            asset_name,
+                            volume,
+                            success_rate,
+                            status,
+                        ),
+                    )
 
-    if not all(result.success for result in results):
-        raise RuntimeError(
-            "GX Silver validation failed; stopping pipeline. "
-            "See Data Docs for details."
-        )
+            metadata_connection.commit()
 
-    logger.info("Silver validation passed!")
+        if not all(result.success for result in results):
+            raise RuntimeError(
+                "GX Silver validation failed; stopping pipeline. "
+                "See Data Docs for details."
+            )
 
-except NoAvailableBatchesError as exc:
-    raise RuntimeError("Required Silver batch is unavailable.") from exc
-finally:
-    try:
-        context.build_data_docs()
-        logger.info("Silver Data Docs successfully built/rebuilt!")
-    except Exception:
-        logger.exception("Failed to rebuild Silver Data Docs")
+        logger.info("Silver validation passed!")
+
+    except NoAvailableBatchesError as exc:
+        raise RuntimeError("Required Silver batch is unavailable.") from exc
+    finally:
+        try:
+            context.build_data_docs()
+            logger.info("Silver Data Docs successfully built/rebuilt!")
+        except Exception:
+            logger.exception("Failed to rebuild Silver Data Docs")
+
+
+if __name__ == "__main__":
+    main()
