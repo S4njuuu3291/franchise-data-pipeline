@@ -238,7 +238,12 @@ services:
     volumes:
       - grafana-franchise:/var/lib/grafana
       - ../grafana-config/provisioning:/etc/grafana/provisioning:ro
-      - ./grafana-entrypoint.sh:/usr/local/bin/grafana-entrypoint.sh:ro
+      - type: bind
+        source: ./grafana-entrypoint.sh
+        target: /usr/local/bin/grafana-entrypoint.sh
+        read_only: true
+        bind:
+          create_host_path: false
     # User 472 adalah user standard internal Grafana.
     # user: "472"
     deploy:
